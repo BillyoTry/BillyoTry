@@ -11,3 +11,25 @@
 b,strong{
     font-weight: 1000 !important;
 }
+@font-face{
+    font-family:Candyhome;
+    src:url(https://cdn.jsdelivr.net/gh/Akilarlxh/akilarlxh.github.io/fonts/Candyhome.ttf);
+    font-display:swap;
+    font-weight:lighter
+}
+body{
+    position:relative;min-height:100%;
+    background:var(--global-bg);
+    color:var(--font-color);
+    font-size:var(--global-font-size);
+    font-family:Langar,Candyhome,-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Lato,Roboto,"PingFang SC",STZhongsong,"Lantinghei SC",sans-serif;
+    line-height:2;
+    -webkit-tap-highlight-color:transparent
+}
+h1#site-title{
+    font-family:Candyhome;font-size:3em!important
+}
+p.p.logo,
+span.p.logo{
+    font-family:Langar,Candyhome,-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Lato,Roboto,"PingFang SC",STZhongsong,"Lantinghei SC",sans-serif
+}
