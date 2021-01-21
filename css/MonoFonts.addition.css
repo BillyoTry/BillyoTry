@@ -1,0 +1,13 @@
+@font-face{
+    font-family:'JetBrains Mono';
+    src:url(https://cdn.jsdelivr.net/gh/LemonPrefect/sDelivr@1.6.7/font/JetBrainsMono-Medium.eot),
+        url(https://cdn.jsdelivr.net/gh/LemonPrefect/sDelivr@1.6.7/font/JetBrainsMono-Medium.woff2)
+}
+@font-face{
+    font-family:'Noto Mono';
+    src:url(https://cdn.jsdelivr.net/gh/LemonPrefect/sDelivr@1.6.7/font/NotoMono-Regular.eot),
+        url(https://cdn.jsdelivr.net/gh/LemonPrefect/sDelivr@1.6.7/font/NotoMono-Regular.woff2)
+}
+b,strong{
+    font-weight: 1000 !important;
+}
