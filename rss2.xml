@@ -9,7 +9,7 @@
     <atom:link href="/rss2.xml" rel="self" type="application/rss+xml"/>
     
     <description>雖不能至 心嚮往之</description>
-    <pubDate>Fri, 22 Jan 2021 05:25:44 GMT</pubDate>
+    <pubDate>Fri, 22 Jan 2021 08:36:37 GMT</pubDate>
     <generator>http://hexo.io/</generator>
     
     <item>
@@ -21,14 +21,15 @@
       
         
         
-          &lt;p&gt;test&lt;/p&gt;
+          &lt;p&gt;&lt;strong&gt;just a test&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt; &lt;img src=&quot;https://inews.gtimg.com/newsapp_ls/0/13071917630/0&quot; alt=&quot;backgroud&quot;&gt;&lt;/p&gt;
 
         
       
       </description>
       
       
-      <content:encoded><![CDATA[<p>test</p>]]></content:encoded>
+      <content:encoded><![CDATA[<p><strong>just a test</strong></p><p> <img src="https://inews.gtimg.com/newsapp_ls/0/13071917630/0" alt="backgroud"></p>]]></content:encoded>
       
       <comments>https://billyotry.github.io/2021/01/22/test/#disqus_thread</comments>
     </item>

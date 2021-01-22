@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://billyotry.github.io/"/>
-  <updated>2021-01-22T05:25:44.074Z</updated>
+  <updated>2021-01-22T08:36:37.205Z</updated>
   <id>https://billyotry.github.io/</id>
   
   <author>
@@ -21,15 +21,16 @@
     <link href="https://billyotry.github.io/2021/01/22/test/"/>
     <id>https://billyotry.github.io/2021/01/22/test/</id>
     <published>2021-01-21T17:14:34.658Z</published>
-    <updated>2021-01-22T05:25:44.074Z</updated>
+    <updated>2021-01-22T08:36:37.205Z</updated>
     
-    <content type="html"><![CDATA[<p>test</p>]]></content>
+    <content type="html"><![CDATA[<p><strong>just a test</strong></p><p> <img src="https://inews.gtimg.com/newsapp_ls/0/13071917630/0" alt="backgroud"></p>]]></content>
     
     <summary type="html">
     
       
       
-        &lt;p&gt;test&lt;/p&gt;
+        &lt;p&gt;&lt;strong&gt;just a test&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt; &lt;img src=&quot;https://inews.gtimg.com/newsapp_ls/0/13071917630/0&quot; alt=&quot;backgroud&quot;&gt;&lt;/p&gt;
 
       
     
