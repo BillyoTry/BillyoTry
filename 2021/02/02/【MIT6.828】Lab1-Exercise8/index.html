@@ -1,0 +1,267 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>【MIT6.828】Lab1-Exercise8 | C7</title><meta name="keywords" content="OS"><meta name="author" content="C7"><meta name="copyright" content="C7"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="任务我们丢弃了一小部分代码—即当我们在printf中指定输出”%o”格式的字符串，即八进制格式的代码。尝试去完成这部分程序。 分析在这个练习中我们首先要阅读三个源文件之间的代码，弄清楚他们三者之间的关系。他们是&#x2F;kern&#x2F;printf.c，&#x2F;kern&#x2F;console.c, &#x2F;lib&#x2F;printfmt.c 首先大致浏览三个源文件，大致观察到：  printf.c中的cprintf调用了vcprint">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【MIT6.828】Lab1-Exercise8">
+<meta property="og:url" content="https://billyotry.github.io/2021/02/02/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise8/index.html">
+<meta property="og:site_name" content="C7">
+<meta property="og:description" content="任务我们丢弃了一小部分代码—即当我们在printf中指定输出”%o”格式的字符串，即八进制格式的代码。尝试去完成这部分程序。 分析在这个练习中我们首先要阅读三个源文件之间的代码，弄清楚他们三者之间的关系。他们是&#x2F;kern&#x2F;printf.c，&#x2F;kern&#x2F;console.c, &#x2F;lib&#x2F;printfmt.c 首先大致浏览三个源文件，大致观察到：  printf.c中的cprintf调用了vcprint">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg">
+<meta property="article:published_time" content="2021-02-02T09:34:23.829Z">
+<meta property="article:modified_time" content="2021-02-02T16:30:38.317Z">
+<meta property="article:author" content="C7">
+<meta property="article:tag" content="OS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg"><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://billyotry.github.io/2021/02/02/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise8/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  date_suffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  source: {
+    jQuery: 'https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js',
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+    },
+    fancybox: {
+      js: 'https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isanchor: false
+};
+
+const saveToLocal = {
+  // ttl 單位是 天
+  set: function setWithExpiry(key, value, ttl) {
+    if (ttl === 0) return
+    const now = new Date()
+    const expiryDay = ttl * 86400000
+    const item = {
+      value: value,
+      expiry: now.getTime() + expiryDay,
+    }
+    localStorage.setItem(key, JSON.stringify(item))
+  },
+
+  get: function getWithExpiry(key) {
+    const itemStr = localStorage.getItem(key)
+
+    if (!itemStr) {
+      return undefined
+    }
+    const item = JSON.parse(itemStr)
+    const now = new Date()
+
+    if (now.getTime() > item.expiry) {
+      localStorage.removeItem(key)
+      return undefined
+    }
+    return item.value
+  }
+}
+
+// https://stackoverflow.com/questions/16839698/jquery-getscript-alternative-in-native-javascript
+const getScript = url => new Promise((resolve, reject) => {
+  const script = document.createElement('script')
+  script.src = url
+  script.async = true
+  script.onerror = reject
+  script.onload = script.onreadystatechange = function() {
+    const loadState = this.readyState
+    if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+    script.onload = script.onreadystatechange = null
+    resolve()
+  }
+  document.head.appendChild(script)
+})</script><script id="config_change">var GLOBAL_CONFIG_SITE = { 
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2021-02-03 00:30:38'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(function () {  window.activateDarkMode = function () {
+    document.documentElement.setAttribute('data-theme', 'dark')
+    if (document.querySelector('meta[name="theme-color"]') !== null) {
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+    }
+  }
+  window.activateLightMode = function () {
+    document.documentElement.setAttribute('data-theme', 'light')
+   if (document.querySelector('meta[name="theme-color"]') !== null) {
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+    }
+  }
+  const autoChangeMode = 'false'
+  const t = saveToLocal.get('theme')
+  if (autoChangeMode === '1') {
+    const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches
+    const isNotSpecified = window.matchMedia('(prefers-color-scheme: no-preference)').matches
+    const hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+    if (t === undefined) {
+      if (isLightMode) activateLightMode()
+      else if (isDarkMode) activateDarkMode()
+      else if (isNotSpecified || hasNoSupport) {
+        const now = new Date()
+        const hour = now.getHours()
+        const isNight = hour <= 6 || hour >= 18
+        isNight ? activateDarkMode() : activateLightMode()
+      }
+      window.matchMedia('(prefers-color-scheme: dark)').addListener(function (e) {
+        if (saveToLocal.get('theme') === undefined) {
+          e.matches ? activateDarkMode() : activateLightMode()
+        }
+      })
+    } else if (t === 'light') activateLightMode()
+    else activateDarkMode()
+  } else if (autoChangeMode === '2') {
+    const now = new Date()
+    const hour = now.getHours()
+    const isNight = hour <= 6 || hour >= 18
+    if (t === undefined) isNight ? activateDarkMode() : activateLightMode()
+    else if (t === 'light') activateLightMode()
+    else activateDarkMode()
+  } else {
+    if (t === 'dark') activateDarkMode()
+    else if (t === 'light') activateLightMode()
+  }const asideStatus = saveToLocal.get('aside-status')
+if (asideStatus !== undefined) {
+   if (asideStatus === 'hide') {
+     document.documentElement.classList.add('hide-aside')
+   } else {
+     document.documentElement.classList.remove('hide-aside')
+   }
+}})()</script><link rel="stylesheet" href="/clock/css/clock.css"/><link rel="stylesheet" href="/css/style.min.css"><link rel="stylesheet" href="/css/MonoFonts.addition.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sviptzk/StaticFile_HEXO@latest/butterfly/css/macWhite.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sviptzk/StaticFile_HEXO@latest/butterfly/css/font-awesome-animation.min.css"><meta name="generator" content="Hexo 5.3.0"><link rel="alternate" href="/atom.xml" title="C7" type="application/atom+xml">
+<link rel="alternate" href="/rss2.xml" title="C7" type="application/rss+xml">
+</head><body><div id="web_bg"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="author-avatar"><img class="avatar-img" src="/img/avatar.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data"><div class="data-item is-center"><div class="data-item-link"><a href="/archives/"><div class="headline">文章</div><div class="length-num">20</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/tags/"><div class="headline">标签</div><div class="length-num">7</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/categories/"><div class="headline">分类</div><div class="length-num">3</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/./"><i class="fa-fw fa fa-home faa-shake animated-hover"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive faa-shake animated-hover"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags faa-shake animated-hover"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open faa-shake animated-hover"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link faa-shake animated-hover"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart faa-shake animated-hover"></i><span> 关于</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> 放松一下</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/games/2048/"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> 2048 经典2048</span></a></li><li><a class="site-page" target="_blank" rel="noopener" href="http://taqini.space/games/battle-city/#/"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> BattleCity 坦克大战</span></a></li></ul></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background: transparent"><nav id="nav"><span id="blog_name"><a id="site-name" href="/">C7</a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/./"><i class="fa-fw fa fa-home faa-shake animated-hover"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive faa-shake animated-hover"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags faa-shake animated-hover"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open faa-shake animated-hover"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link faa-shake animated-hover"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart faa-shake animated-hover"></i><span> 关于</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> 放松一下</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/games/2048/"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> 2048 经典2048</span></a></li><li><a class="site-page" target="_blank" rel="noopener" href="http://taqini.space/games/battle-city/#/"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> BattleCity 坦克大战</span></a></li></ul></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">【MIT6.828】Lab1-Exercise8</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2021-02-02T09:34:23.829Z" title="发表于 2021-02-02 17:34:23">2021-02-02</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2021-02-02T16:30:38.317Z" title="更新于 2021-02-03 00:30:38">2021-02-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Learning/">Learning</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><h2 id="任务"><a href="#任务" class="headerlink" title="任务"></a>任务</h2><p>我们丢弃了一小部分代码—即当我们在printf中指定输出”%o”格式的字符串，即八进制格式的代码。尝试去完成这部分程序。</p>
+<h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>在这个练习中我们首先要阅读三个源文件之间的代码，弄清楚他们三者之间的关系。他们是<code>/kern/printf.c，/kern/console.c, /lib/printfmt.c</code></p>
+<p>首先大致浏览三个源文件，大致观察到：</p>
+<ol>
+<li>printf.c中的cprintf调用了vcprintf，然后vcprintf调用了printffmt.c中的vprintfmt。</li>
+<li>printf.c中的putch调用了console.c中的cputchar，cputchar调用了cons_putc。</li>
+<li>printfmt.c中的某些程序也依赖于cputchar。</li>
+</ol>
+<p>所以printf.C，printfmt.c的功能依赖于console.c的功能。所以我们先探讨下console.c。</p>
+<h3 id="kern-console-c"><a href="#kern-console-c" class="headerlink" title="/kern/console.c"></a>/kern/console.c</h3><p>这个文件中定义了把一个字符显示到console上，即我们的显示屏上，里面包括了很多对IO端口的操作。</p>
+<p>其中我们最感兴趣的<code>cputchar</code>函数。从注释中我们知道这个是最高处的console的IO控制程序，<code>cputchar</code>的实现其实是通过调用<code>cons_putc</code>实现的。</p>
+<p><code>cons_putc</code>的功能是输出一个字符到控制台（计算机的屏幕），所以<code>cputchar</code>的功能也是想屏幕上输出一个字符。然后我们具体看下<code>cons_putc</code>函数，<code>cons_putc</code>包含三个函数。</p>
+<p>首先是<code>serial_putc</code>函数：其中包括了一些IO端口程序，通过代码的宏定义我们知道他是在控制0x3f8端口，这个端口在我们之前的网站中可以查到，它是属于控制计算机中的串口。我们在观察一下函数中的inb指令和outb指令，他们分别控制两个端口，<code>COM1+COM_LSR = 0x3f8 + 5 = 0x3fd</code>和 <code>COM1 + COM_TX = 0x3f8 + 0 = 0x3f8</code>端口。inb指令是读取<code>0x3fd</code>端口，即line status registers的内容，并且判断它的bit5是否为1，即发送数据缓冲区寄存器是否为空。如果为空，则计算机可以发送下一个数据给端口。而outb指令则是把要发送的数据c，发送给<code>0x3f8</code>，当<code>0x3f8</code>端口被写入值时，它是作为发送数据缓冲寄存器的，里面存放要发送给串口的数据。所以<code>serial_putc</code>函数的功能是把一个字符输出给串口。至于为什么，不知道。</p>
+<p>然后是<code>lpt_putc</code>函数：把字符输出给并口设备。至于为什么，不知道。</p>
+<p>接着是<code>cga_putc</code>函数：把字符输出到cga设备上，即计算机的显示屏。它首先定义了一个缓冲区，缓冲区的当前显示内容的最后一个字符的指针就是crt_pos，所以当你新输入一个字符时，你必须根据字符值的值，来输出正确的内容给这个缓冲区，然后缓冲区的内容才能正确的显示在屏幕上。比如当第8行当c为’\b’时，代表是输入了退格，所以此时要把缓冲区最后一个字节的指针减一，相当于丢弃当前最后一个输入的字符。当c为’\t’时，我要输出5个空格给缓冲区。如果不是特殊字符，那么就把字符的内容直接输入到缓冲区。而switch之后的if判断语句的功能应该是保证缓冲区中的最后显示出去的内容的大小不要超过显示的大小的界限。最后四句则是把缓冲区的内容输出给显示屏。</p>
+<h3 id="lib-printfmt-c"><a href="#lib-printfmt-c" class="headerlink" title="/lib/printfmt.c"></a>/lib/printfmt.c</h3><p>首先看一下文件开头的注释。</p>
+<p>“打印各种样式的字符串的函数，经常被printf，sprintf，fprintf函数所调用，这些代码是同时被内核和用户程序所使用的”通过注释，我们知道这个文件中定义的子程序是我们能在编程时直接利用printf函数想屏幕输出信息的关键。那么我们把目光锁定到被其他文件以来的<code>vprintfmt</code>子程序。程序包含四个参数：</p>
+<ol>
+<li><p><code>void (*putch)(int, void*)</code>：这个参数是一个函数指针，这类函数包含两个输入参数int，void*，int代表一个要输出的字符的值，void *则代表要把这个字符输出的位置的地址，但是这里void *参数的值并不是这个这个地址，而是存放这个地址的存储单元的地址。比如我想把一个字符值为0x30的字符（’0’）输出到地址0x01处，此时我们的程序应该是：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="number">1</span> <span class="keyword">int</span> addr = <span class="number">0x01</span>; </span><br><span class="line"><span class="number">2</span> <span class="keyword">int</span> ch = <span class="number">0x30</span>;</span><br><span class="line"><span class="number">3</span> putch(ch, &amp;addr);</span><br></pre></td></tr></table></figure></li>
+<li><p><code>void *putdat</code>：这个参数就是输入的字符要存放的内存地址的指针，就是和上面putch函数的第二个参数一个含义。</p>
+</li>
+<li><p><code>const char *fmt</code>：这个参数代表你在编写类似于printf这种格式化输出程序时，你指定的格式的字符串，即printf函数的第一个输入参数，比如printf(“This is %d test”, n)，这个子程序中，fmt就是”This is %d test”。</p>
+</li>
+<li><p><code>va_list ap</code>：这个参数代表的是多个输入参数，即printf子程序中从第二个参数开始之后的参数，比如(“These are %d test and %d test”, n, m)，那么ap指的就是n，m。</p>
+</li>
+</ol>
+<p>那么这个函数的执行过程主要是一个while循环，分为以下几个步骤：</p>
+<ol>
+<li><p>（92 ~ 96行）首先一个个的输出格式化字符串fmt中所有’%’之前的字符，因为它们就是要直接输出的，比如”This is %d test”中的”This is “。当然如果在把这些字符一个个输出中遇到结束符’\0’，则结束输出。</p>
+</li>
+<li><p>（98 ~ 243行）剩余的代码都是在处理’%’符号后面的格式化输出，比如是%d，则按照十进制输出对应参数。另外还有一些其他的特殊字符比如’%5d’代表显示5位，其中的5要特殊处理。而这个程序也是正是这个练习让我们补充的地方，在源程序的第207行~212行，这里是要处理显示八进制的格式的时候的代码：</p>
+<p>　　我们可以参照上面显示无符号十进制的情况’u’，或者十六进制的’x’，来书写八进制的，具体原理可以看上面代码的备注，我填写代码如下：</p>
+</li>
+</ol>
+<p>注：这个子程序里面涉及到一个非常重要的子函数va_arg()，其实与这个函数类似的还有2个，va_start()，va_end()，以及一个数据类型va_list。这个4个东西是为了计算机能够处理输入参数不固定的程序。比如下面这种程序的声明方式</p>
+<p>　　　　　void fun(int arg_num, …)</p>
+<p>其中arg_num，代表这个程序输入参数的个数(不包含arg_num本身)，而后面的省略号则指代后续所有的输入参数，我们可以在程序中调用，如下</p>
+<p>　　　　　fun(3, 10, 20, 30)；</p>
+<p>　　 这种能够处理可变个数输入参数的功能就是由va_list, va_arg(), va_start(), va_end()来实现的。可以参考</p>
+<p><a target="_blank" rel="noopener" href="http://www.cnblogs.com/justinzhang/archive/2011/09/29/2195969.html。">http://www.cnblogs.com/justinzhang/archive/2011/09/29/2195969.html。</a></p>
+<h3 id="kern-printf-c"><a href="#kern-printf-c" class="headerlink" title="/kern/printf.c"></a>/kern/printf.c</h3><p>这个文件中定义了我们在编程中会用到的最顶层的一些格式化输出子程序，比如printf，sprintf等。</p>
+<p>首先看一下最下面的cprintf子程序，它的输入是最接近于我们在编程中使用格式化输出子程序时的输入了，比如printf(“This is %d test”, n)，第一个参数为输出的格式字符串，而后面就是我要输出的一些参数。它是如何实现的呢，我们在它的内部看到a_list，va_arg(), va_start(), va_end()这组操作的使用，前面我们说过，它们是专门用来处理这种输入参数的个数不确定的情况。在cprintf中我们发现，它利用va_list，va_arg()，va_start()，va_end()这些操作，把cprintf的fmt之后的输入参数都转化为va_list类型的一个参数，然后把fmt，和这个新生成的ap作为参数传递给vcprintf。</p>
+<p>在vcprintf中我们发现，它就是调用了我们在上面仔细分析过的vprintfmt子程序，回顾一下，介绍vprintfmt子程序时，我们说过它有4个参数，如下</p>
+<ol>
+<li><code>void (*putch)(int, void*)</code>：这个参数是一个函数指针，这类函数包含两个输入参数int, void *，int参数代表一个要输出的字符的值。void * 则代表要把这个字符输出的位置的地址。</li>
+<li><code>void *putdat</code>：这个参数就是输入的字符要存放在的内存地址的指针，就是和上面putch函数的第二个输入参数是一个含义。</li>
+<li><code>const char *fmt</code>：这个参数代表你在编写类似于printf这种格式化输出程序时，你指定格式的字符串，即printf函数的第一个输入参数，比如printf(“This is %d test”, n)，这个子程序中，fmt就是”This is %d test”。</li>
+<li><code>va_list ap</code>：这个参数代表的是多个输入参数，即printf子程序中从第二个参数开始之后的参数，比如(“These are %d test and %d test”, n, m)，那么ap指的就是n，m。</li>
+</ol>
+<p>我们可以发现，刚刚得到的fmt和ap正好可以被放在第3和第4个输入参数处！</p>
+<p>另外再看头两个参数，第一个参数是一个函数指针，这个函数必须能够实现把一个字符输出到某个地址处的功能。再看一下vcprintf中它赋给vprintfmt子程序的第一个参数是这个文件中的第一个子程序putch。</p>
+<p>它调用了我们最开始分析的子程序，cputchar，这个子程序可以把字符输出到屏幕上。所以这个putch子程序是满足vprintfmt子程序的要求的~可以作为参数传递给它。最后再看第二个参数，这个参数在这里就不具备内存地址的含义了，我们看到在putch里面，它只是把字符输出给屏幕，然后把这个cnt加1，并没有把字符存放到cnt所指向的地址处，所以这个cnt就变成了一个计数器。记录已经输出了多少的字符。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">C7</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="https://billyotry.github.io/2021/02/02/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise8/">https://billyotry.github.io/2021/02/02/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise8/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="https://billyotry.github.io" target="_blank">C7</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/OS/">OS</a></div><div class="post_share"><div class="social-share" data-image="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/2021/02/03/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise9/"><img class="prev-cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">【MIT6.828】Lab1-Exercise9</div></div></a></div><div class="next-post pull-right"><a href="/2021/02/01/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise7/"><img class="next-cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">【MIT6.828】Lab1-Exercise7</div></div></a></div></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span> 相关推荐</span></div><div class="relatedPosts-list"><div><a href="/2021/01/22/【MIT6.828】Lab1-Exercise2/" title="【MIT 6.828】Lab1-Exercise2"><img class="cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-01-22</div><div class="title">【MIT 6.828】Lab1-Exercise2</div></div></a></div><div><a href="/2021/01/30/【MIT6.828】Lab1-Exercise5/" title="【MIT6.828】Lab1-Exercise5"><img class="cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-01-30</div><div class="title">【MIT6.828】Lab1-Exercise5</div></div></a></div><div><a href="/2021/01/31/【MIT6.828】Lab1-Exercise6/" title="【MIT6.828】Lab1-Exercise6"><img class="cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-01-31</div><div class="title">【MIT6.828】Lab1-Exercise6</div></div></a></div><div><a href="/2021/02/01/【MIT6.828】Lab1-Exercise7/" title="【MIT6.828】Lab1-Exercise7"><img class="cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-02-01</div><div class="title">【MIT6.828】Lab1-Exercise7</div></div></a></div><div><a href="/2021/02/03/【MIT6.828】Lab1-Exercise9/" title="【MIT6.828】Lab1-Exercise9"><img class="cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-02-03</div><div class="title">【MIT6.828】Lab1-Exercise9</div></div></a></div><div><a href="/2021/01/22/【MIT6.828】JOS学习笔记 Lab1/" title="【MIT 6.828】JOS学习笔记 Lab1【未完】"><img class="cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-01-22</div><div class="title">【MIT 6.828】JOS学习笔记 Lab1【未完】</div></div></a></div></div></div><hr/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="card-info-avatar is-center"><img class="avatar-img" src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/><div class="author-info__name">C7</div><div class="author-info__description">雖不能至 心嚮往之</div></div><div class="card-info-data"><div class="card-info-data-item is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">20</div></a></div><div class="card-info-data-item is-center"><a href="/tags/"><div class="headline">标签</div><div class="length-num">7</div></a></div><div class="card-info-data-item is-center"><a href="/categories/"><div class="headline">分类</div><div class="length-num">3</div></a></div></div><a class="button--animated" id="card-info-btn"><i class="fa fa-paper-plane-o"></i><span>加入书签</span></a><div class="card-info-social-icons is-center"><a class="social-icon" href="https://github.com/BillyoTry" target="_blank" title="Github"><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:1347405944@qq.com" target="_blank" title="Email"><i class="fa fa-envelope"></i></a><a class="social-icon" href="tencent://message/?uin=1347405944&amp;Site=&amp;Menu=yes" target="_blank" title=""><i class="fab fa-qq"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn card-announcement-animation"></i><span>公告</span></div><div class="announcement_content">大家疫情期间注意保护自己噢~~~~</div></div><div class="sticky_layout"><div class="card-widget card-clock" style="padding:0"><div class="card-glass"><div class="card-background"><div class="card-content"><div id="clock" style="padding:20px"><img v-if="clockshow == &quot;false&quot;" src="/clock/images/weather/loading.gif" style="height:120px;width:100%"/><table class="clock" v-if="clockshow"><tbody><tr><td class="clockdate">{{date}}</td><td class="weatherimg" align="center" valign="middle"><img id="weatherimg" :src="weatherimg"/></td><td class="temperature" align="center" valign="middle">{{temperature}}</td><td class="humidityimg"><img id="humidityimg" :src="humidityimg"/></td><td class="humidity">{{humidity}}</td></tr><tr class="time"><td colspan="5">{{time}}</td></tr><tr><td class="usaqi" colspan="1"> <span>{{ip}}</span></td><td class="city" colspan="2">{{city}}</td><td class="daylight" colspan="2">{{daylight}}</td></tr></tbody></table></div></div></div></div></div><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%BB%E5%8A%A1"><span class="toc-number">1.</span> <span class="toc-text">任务</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%88%86%E6%9E%90"><span class="toc-number">2.</span> <span class="toc-text">分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#kern-console-c"><span class="toc-number">2.1.</span> <span class="toc-text">&#x2F;kern&#x2F;console.c</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#lib-printfmt-c"><span class="toc-number">2.2.</span> <span class="toc-text">&#x2F;lib&#x2F;printfmt.c</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#kern-printf-c"><span class="toc-number">2.3.</span> <span class="toc-text">&#x2F;kern&#x2F;printf.c</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2021/02/03/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise9/" title="【MIT6.828】Lab1-Exercise9"><img src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【MIT6.828】Lab1-Exercise9"/></a><div class="content"><a class="title" href="/2021/02/03/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise9/" title="【MIT6.828】Lab1-Exercise9">【MIT6.828】Lab1-Exercise9</a><time datetime="2021-02-03T13:01:28.146Z" title="发表于 2021-02-03 21:01:28">2021-02-03</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/02/02/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise8/" title="【MIT6.828】Lab1-Exercise8"><img src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【MIT6.828】Lab1-Exercise8"/></a><div class="content"><a class="title" href="/2021/02/02/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise8/" title="【MIT6.828】Lab1-Exercise8">【MIT6.828】Lab1-Exercise8</a><time datetime="2021-02-02T09:34:23.829Z" title="发表于 2021-02-02 17:34:23">2021-02-02</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/02/01/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise7/" title="【MIT6.828】Lab1-Exercise7"><img src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【MIT6.828】Lab1-Exercise7"/></a><div class="content"><a class="title" href="/2021/02/01/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise7/" title="【MIT6.828】Lab1-Exercise7">【MIT6.828】Lab1-Exercise7</a><time datetime="2021-02-01T03:29:34.516Z" title="发表于 2021-02-01 11:29:34">2021-02-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/01/31/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise6/" title="【MIT6.828】Lab1-Exercise6"><img src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【MIT6.828】Lab1-Exercise6"/></a><div class="content"><a class="title" href="/2021/01/31/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise6/" title="【MIT6.828】Lab1-Exercise6">【MIT6.828】Lab1-Exercise6</a><time datetime="2021-01-31T01:35:16.251Z" title="发表于 2021-01-31 09:35:16">2021-01-31</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/01/30/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise5/" title="【MIT6.828】Lab1-Exercise5"><img src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【MIT6.828】Lab1-Exercise5"/></a><div class="content"><a class="title" href="/2021/01/30/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise5/" title="【MIT6.828】Lab1-Exercise5">【MIT6.828】Lab1-Exercise5</a><time datetime="2021-01-30T14:39:18.216Z" title="发表于 2021-01-30 22:39:18">2021-01-30</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2021 By C7</div><div class="footer_custom_text"><p><a style="margin-inline:5px" target="_blank" href="https://hexo.io/"><img src="https://img.shields.io/badge/Frame-Hexo-blue?style=flat&logo=hexo" title="博客框架为Hexo"></a><a style="margin-inline:5px" target="_blank" href="https://butterfly.js.org/"><img src="https://img.shields.io/badge/Theme-Butterfly-6513df?style=flat&logo=bitdefender" title="主题采用butterfly"></a><a style="margin-inline:5px" target="_blank" href="https://www.jsdelivr.com/"><img src="https://img.shields.io/badge/CDN-jsDelivr-orange?style=flat&logo=jsDelivr" title="本站使用JsDelivr为静态资源提供CDN加速"></a><a style="margin-inline:5px" target="_blank" href="https://vercel.com/ "><img src="https://img.shields.io/badge/Hosted-Vervel-brightgreen?style=flat&logo=Vercel" title="本站采用双线部署，默认线路托管于Vercel"></a><a style="margin-inline:5px" target="_blank" href="https://vercel.com/ "><img src="https://img.shields.io/badge/Hosted-Coding-0cedbe?style=flat&logo=Codio" title="本站采用双线部署，联通线路托管于Coding"></a><a style="margin-inline:5px" target="_blank" href="https://github.com/"><img src="https://img.shields.io/badge/Source-Github-d021d6?style=flat&logo=GitHub" title="本站项目由Gtihub托管"></a><a style="margin-inline:5px" target="_blank" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img src="https://img.shields.io/badge/Copyright-BY--NC--SA%204.0-d42328?style=flat&logo=Claris" title="本站采用知识共享署名-非商业性使用-相同方式共享4.0国际许可协议进行许可"></a></p></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="直达评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><div class="js-pjax"><script>function loadValine () {
+  function initValine () {
+    let initData = {
+      el: '#vcomment',
+      appId: '',
+      appKey: '',
+      placeholder: 'Please leave your footprints',
+      avatar: 'monsterid',
+      meta: 'nick,mail,link'.split(','),
+      pageSize: '10',
+      lang: 'en',
+      recordIP: false,
+      serverURLs: '',
+      emojiCDN: '',
+      emojiMaps: "",
+      enableQQ: false,
+      path: window.location.pathname,
+    }
+
+    if (true) { 
+      initData.requiredFields= ('nick,mail'.split(','))
+    }
+    
+    if (false) {
+      const otherData = false
+      initData = Object.assign(initData, otherData)
+    }
+    
+    const valine = new Valine(initData)
+  }
+
+  if (typeof Valine === 'function') initValine() 
+  else getScript('https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js').then(initValine)
+}
+
+if ('Valine' === 'Valine' || !false) {
+  if (false) btf.loadComment(document.getElementById('vcomment'),loadValine)
+  else setTimeout(loadValine, 0)
+} else {
+  function loadOtherComment () {
+    loadValine()
+  }
+}</script></div><script src="/js/unbanner.js"></script><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script><script src="/clock/js/clock.js"></script><script async src="//at.alicdn.com/t/font_2264842_3izu8i5eoc2.js"></script><script async src="/js/xktool.js"></script><script async src="/js/fish.js"></script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
