@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="https://billyotry.github.io/"/>
-  <updated>2021-02-28T13:18:10.471Z</updated>
+  <updated>2021-02-28T13:21:57.128Z</updated>
   <id>https://billyotry.github.io/</id>
   
   <author>
@@ -17,13 +17,37 @@
   <generator uri="https://hexo.io/">Hexo</generator>
   
   <entry>
+    <title>这是标题</title>
+    <link href="https://billyotry.github.io/2099/01/01/test/"/>
+    <id>https://billyotry.github.io/2099/01/01/test/</id>
+    <published>2098-12-31T16:00:00.000Z</published>
+    <updated>2021-02-28T13:21:57.128Z</updated>
+    
+    <content type="html"><![CDATA[<p><strong>just a test</strong></p><p> <img src="https://inews.gtimg.com/newsapp_ls/0/13071917630/0" alt="backgroud"></p>]]></content>
+    
+    <summary type="html">
+    
+      
+      
+        &lt;p&gt;&lt;strong&gt;just a test&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt; &lt;img src=&quot;https://inews.gtimg.com/newsapp_ls/0/13071917630/0&quot; alt=&quot;backgroud&quot;&gt;&lt;/p&gt;
+
+      
+    
+    </summary>
+    
+    
+    
+  </entry>
+  
+  <entry>
     <title>【MIT6.828】Lab1-Exercise11</title>
     <link href="https://billyotry.github.io/2021/02/28/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise11/"/>
     <id>https://billyotry.github.io/2021/02/28/%E3%80%90MIT6.828%E3%80%91Lab1-Exercise11/</id>
     <published>2021-02-28T13:13:11.198Z</published>
-    <updated>2021-02-28T13:18:10.471Z</updated>
+    <updated>2021-02-28T13:20:47.965Z</updated>
     
-    <content type="html"><![CDATA[<h2 id="任务"><a href="#任务" class="headerlink" title="任务"></a>任务</h2><p>完成<code>mon_backtrace()</code>函数</p><h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>我们可以利用课程提供给我们的<code>read_ebp()</code>函数来获取此时的ebp，不过要注意的是他返回的是<code>int</code>类型，接下来就是简单是指针操作了。</p><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span></span><br><span class="line">mon_backtrace(<span class="keyword">int</span> argc, <span class="keyword">char</span> **argv, struct Trapframe *tf)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">int</span>* ebp = (<span class="keyword">int</span> *)read_ebp();</span><br><span class="line">    cprintf(<span class="string">&quot;Stack backtrace:\n&quot;</span>);</span><br><span class="line">    <span class="keyword">while</span>(ebp)&#123;</span><br><span class="line">        cprintf(<span class="string">&quot;  ebp %08x&quot;</span>,ebp);</span><br><span class="line">        cprintf(<span class="string">&quot;  eip %08x&quot;</span>,*(ebp+<span class="number">1</span>));</span><br><span class="line">        cprintf(<span class="string">&quot;  args&quot;</span>);</span><br><span class="line">        cprintf(<span class="string">&quot; %08x&quot;</span>,*(ebp+<span class="number">2</span>));</span><br><span class="line">        cprintf(<span class="string">&quot; %08x&quot;</span>,*(ebp+<span class="number">3</span>));</span><br><span class="line">        cprintf(<span class="string">&quot; %08x&quot;</span>,*(ebp+<span class="number">4</span>));</span><br><span class="line">        cprintf(<span class="string">&quot; %08x&quot;</span>,*(ebp+<span class="number">5</span>));</span><br><span class="line">        cprintf(<span class="string">&quot; %08x\n&quot;</span>,*(ebp+<span class="number">6</span>));</span><br><span class="line">        ebp = (<span class="keyword">int</span>*) *ebp;</span><br><span class="line">    &#125;</span><br><span class="line">   <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>效果图如下：</p><p><img src="https://inews.gtimg.com/newsapp_ls/0/13223233811/0" alt="image-20210228211804240"></p>]]></content>
+    <content type="html"><![CDATA[<h2 id="任务"><a href="#任务" class="headerlink" title="任务"></a>任务</h2><p>完成<code>mon_backtrace()</code>函数</p><h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>我们可以利用课程提供给我们的<code>read_ebp()</code>函数来获取此时的ebp，不过要注意的是他返回的是<code>int</code>类型，接下来就是简单的指针操作了。</p><figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span></span><br><span class="line">mon_backtrace(<span class="keyword">int</span> argc, <span class="keyword">char</span> **argv, struct Trapframe *tf)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">int</span>* ebp = (<span class="keyword">int</span> *)read_ebp();</span><br><span class="line">    cprintf(<span class="string">&quot;Stack backtrace:\n&quot;</span>);</span><br><span class="line">    <span class="keyword">while</span>(ebp)&#123;</span><br><span class="line">        cprintf(<span class="string">&quot;  ebp %08x&quot;</span>,ebp);</span><br><span class="line">        cprintf(<span class="string">&quot;  eip %08x&quot;</span>,*(ebp+<span class="number">1</span>));</span><br><span class="line">        cprintf(<span class="string">&quot;  args&quot;</span>);</span><br><span class="line">        cprintf(<span class="string">&quot; %08x&quot;</span>,*(ebp+<span class="number">2</span>));</span><br><span class="line">        cprintf(<span class="string">&quot; %08x&quot;</span>,*(ebp+<span class="number">3</span>));</span><br><span class="line">        cprintf(<span class="string">&quot; %08x&quot;</span>,*(ebp+<span class="number">4</span>));</span><br><span class="line">        cprintf(<span class="string">&quot; %08x&quot;</span>,*(ebp+<span class="number">5</span>));</span><br><span class="line">        cprintf(<span class="string">&quot; %08x\n&quot;</span>,*(ebp+<span class="number">6</span>));</span><br><span class="line">        ebp = (<span class="keyword">int</span>*) *ebp;</span><br><span class="line">    &#125;</span><br><span class="line">   <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>效果图如下：</p><p><img src="https://inews.gtimg.com/newsapp_ls/0/13223233811/0" alt="image-20210228211804240"></p>]]></content>
     
     <summary type="html">
     
@@ -329,30 +353,6 @@
     
     
       <category term="OS" scheme="https://billyotry.github.io/tags/OS/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>这是标题</title>
-    <link href="https://billyotry.github.io/2021/01/22/test/"/>
-    <id>https://billyotry.github.io/2021/01/22/test/</id>
-    <published>2021-01-21T17:14:34.658Z</published>
-    <updated>2021-01-23T02:42:43.312Z</updated>
-    
-    <content type="html"><![CDATA[<p><strong>just a test</strong></p><p> <img src="https://inews.gtimg.com/newsapp_ls/0/13071917630/0" alt="backgroud"></p>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;p&gt;&lt;strong&gt;just a test&lt;/strong&gt;&lt;/p&gt;
-&lt;p&gt; &lt;img src=&quot;https://inews.gtimg.com/newsapp_ls/0/13071917630/0&quot; alt=&quot;backgroud&quot;&gt;&lt;/p&gt;
-
-      
-    
-    </summary>
-    
-    
     
   </entry>
   
