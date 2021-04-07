@@ -45,16 +45,15 @@
     <link href="https://billyotry.github.io/2021/04/07/%E3%80%90Writeup%E3%80%91GitHub%20Security%20Lab%20CTF-1/"/>
     <id>https://billyotry.github.io/2021/04/07/%E3%80%90Writeup%E3%80%91GitHub%20Security%20Lab%20CTF-1/</id>
     <published>2021-04-07T08:20:21.110Z</published>
-    <updated>2021-04-07T08:23:29.441Z</updated>
+    <updated>2021-04-07T08:29:02.061Z</updated>
     
-    <content type="html"><![CDATA[<p> test</p>]]></content>
+    <content type="html"><![CDATA[<h2 id="Step-0-finding-the-definition-of-alloca"><a href="#Step-0-finding-the-definition-of-alloca" class="headerlink" title="Step 0: finding the definition of alloca"></a>Step 0: finding the definition of <code>alloca</code></h2>]]></content>
     
     <summary type="html">
     
       
       
-        &lt;p&gt; test&lt;/p&gt;
-
+        &lt;h2 id=&quot;Step-0-finding-the-definition-of-alloca&quot;&gt;&lt;a href=&quot;#Step-0-finding-the-definition-of-alloca&quot; class=&quot;headerlink&quot; title=&quot;Step 0: findin
       
     
     </summary>

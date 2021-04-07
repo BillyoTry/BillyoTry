@@ -43,14 +43,13 @@
       
         
         
-          &lt;p&gt; test&lt;/p&gt;
-
+          &lt;h2 id=&quot;Step-0-finding-the-definition-of-alloca&quot;&gt;&lt;a href=&quot;#Step-0-finding-the-definition-of-alloca&quot; class=&quot;headerlink&quot; title=&quot;Step 0: findin
         
       
       </description>
       
       
-      <content:encoded><![CDATA[<p> test</p>]]></content:encoded>
+      <content:encoded><![CDATA[<h2 id="Step-0-finding-the-definition-of-alloca"><a href="#Step-0-finding-the-definition-of-alloca" class="headerlink" title="Step 0: finding the definition of alloca"></a>Step 0: finding the definition of <code>alloca</code></h2>]]></content:encoded>
       
       <comments>https://billyotry.github.io/2021/04/07/%E3%80%90Writeup%E3%80%91GitHub%20Security%20Lab%20CTF-1/#disqus_thread</comments>
     </item>
