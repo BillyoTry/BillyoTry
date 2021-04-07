@@ -41,15 +41,12 @@
       <pubDate>Wed, 07 Apr 2021 08:20:21 GMT</pubDate>
       <description>
       
-        
-        
-          &lt;h2 id=&quot;Step-0-finding-the-definition-of-alloca&quot;&gt;&lt;a href=&quot;#Step-0-finding-the-definition-of-alloca&quot; class=&quot;headerlink&quot; title=&quot;Step 0: findin
-        
+        Here&#39;s something encrypted, password is required to continue reading.
       
       </description>
       
       
-      <content:encoded><![CDATA[<h2 id="Step-0-finding-the-definition-of-alloca"><a href="#Step-0-finding-the-definition-of-alloca" class="headerlink" title="Step 0: finding the definition of alloca"></a>Step 0: finding the definition of <code>alloca</code></h2>]]></content:encoded>
+      <content:encoded><![CDATA[<div class="hbe hbe-container" id="hexo-blog-encrypt" data-wpm="Oh, this is an invalid password. Check and try again, please." data-whm="OOPS, these decrypted content may changed, but you can still have a look.">  <script id="hbeData" type="hbeData" data-hmacdigest="9975b30a00d2963857709f0f380e33fb4b602462c9ae8a0b160035b2c739e479">bff9bcca6997d5c7c4a9ed816f881bf630c02a936237a997932f242466573aa8686b571e0ed482b23dc58bd1a87a053f8edb0ee35ab531587f24eab8f9c3d87406e79defc9beabcef2d391398cf959c5b2b61cb970527dd8cd31aa73049119d9659394827e2efcd882bd7219d88c9f49c461057558976f767c62a4d15d72151137b80d7f916cc702c11871f72588afed2ff7f79521919cc9057090fd78df142c3870fec0b83cac4b72feb4203eb1098aa2a2ce7cef0f49218debff820b7598e609dc62bfcbd2c771529851168c0fe357fbfb44345a1df796338cca416eca5c68182fe88f320e79b92edf960bc3cc7a96e2c20bb3798b4c97bccbf9db7b4c71a3</script>  <div class="hbe hbe-content">    <div class="hbe hbe-input hbe-input-default">      <input class="hbe hbe-input-field hbe-input-field-default" type="password" id="hbePass">      <label class="hbe hbe-input-label hbe-input-label-default" for="hbePass">        <span class="hbe hbe-input-label-content hbe-input-label-content-default">Hey, password is required here.</span>      </label>    </div>  </div></div><script data-pjax src="/lib/hbe.js"></script><link href="/css/hbe.style.css" rel="stylesheet" type="text/css">]]></content:encoded>
       
       <comments>https://billyotry.github.io/2021/04/07/%E3%80%90Writeup%E3%80%91GitHub%20Security%20Lab%20CTF-1/#disqus_thread</comments>
     </item>
