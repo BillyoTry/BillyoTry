@@ -1,0 +1,328 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DirtyCow学习与调试记录 | C7</title><meta name="keywords" content="Linux"><meta name="author" content="C7"><meta name="copyright" content="C7"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="其实网上关于脏牛的文章分析已经很多，本文算是对调试学习该漏洞过程的一个记录 前置知识写时拷贝 竞态条件 页式内存管理 缺页中断处理 基础知识mmap函数 mmap(void* start, size_t length, int prot,int flags,int fd, off_t offset) 这个函数其实比较常用，它有一个很重要的用处就算将磁盘上的文件映射到虚拟内存中，对于这个函数唯一要说">
+<meta property="og:type" content="article">
+<meta property="og:title" content="DirtyCow学习与调试记录">
+<meta property="og:url" content="https://billyotry.github.io/2021/04/22/DirtyCow%E5%AD%A6%E4%B9%A0%E4%B8%8E%E8%B0%83%E8%AF%95%E8%AE%B0%E5%BD%95/index.html">
+<meta property="og:site_name" content="C7">
+<meta property="og:description" content="其实网上关于脏牛的文章分析已经很多，本文算是对调试学习该漏洞过程的一个记录 前置知识写时拷贝 竞态条件 页式内存管理 缺页中断处理 基础知识mmap函数 mmap(void* start, size_t length, int prot,int flags,int fd, off_t offset) 这个函数其实比较常用，它有一个很重要的用处就算将磁盘上的文件映射到虚拟内存中，对于这个函数唯一要说">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://i.loli.net/2021/04/17/LmQWxH4wAb8ZpnO.png">
+<meta property="article:published_time" content="2021-04-22T03:18:18.973Z">
+<meta property="article:modified_time" content="2021-06-03T13:22:02.822Z">
+<meta property="article:author" content="C7">
+<meta property="article:tag" content="Linux">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://i.loli.net/2021/04/17/LmQWxH4wAb8ZpnO.png"><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://billyotry.github.io/2021/04/22/DirtyCow%E5%AD%A6%E4%B9%A0%E4%B8%8E%E8%B0%83%E8%AF%95%E8%AE%B0%E5%BD%95/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  date_suffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  source: {
+    jQuery: 'https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js',
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+    },
+    fancybox: {
+      js: 'https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isanchor: false
+};
+
+const saveToLocal = {
+  // ttl 單位是 天
+  set: function setWithExpiry(key, value, ttl) {
+    if (ttl === 0) return
+    const now = new Date()
+    const expiryDay = ttl * 86400000
+    const item = {
+      value: value,
+      expiry: now.getTime() + expiryDay,
+    }
+    localStorage.setItem(key, JSON.stringify(item))
+  },
+
+  get: function getWithExpiry(key) {
+    const itemStr = localStorage.getItem(key)
+
+    if (!itemStr) {
+      return undefined
+    }
+    const item = JSON.parse(itemStr)
+    const now = new Date()
+
+    if (now.getTime() > item.expiry) {
+      localStorage.removeItem(key)
+      return undefined
+    }
+    return item.value
+  }
+}
+
+// https://stackoverflow.com/questions/16839698/jquery-getscript-alternative-in-native-javascript
+const getScript = url => new Promise((resolve, reject) => {
+  const script = document.createElement('script')
+  script.src = url
+  script.async = true
+  script.onerror = reject
+  script.onload = script.onreadystatechange = function() {
+    const loadState = this.readyState
+    if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+    script.onload = script.onreadystatechange = null
+    resolve()
+  }
+  document.head.appendChild(script)
+})</script><script id="config_change">var GLOBAL_CONFIG_SITE = { 
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2021-06-03 21:22:02'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(function () {  window.activateDarkMode = function () {
+    document.documentElement.setAttribute('data-theme', 'dark')
+    if (document.querySelector('meta[name="theme-color"]') !== null) {
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+    }
+  }
+  window.activateLightMode = function () {
+    document.documentElement.setAttribute('data-theme', 'light')
+   if (document.querySelector('meta[name="theme-color"]') !== null) {
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+    }
+  }
+  const autoChangeMode = 'false'
+  const t = saveToLocal.get('theme')
+  if (autoChangeMode === '1') {
+    const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches
+    const isNotSpecified = window.matchMedia('(prefers-color-scheme: no-preference)').matches
+    const hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+    if (t === undefined) {
+      if (isLightMode) activateLightMode()
+      else if (isDarkMode) activateDarkMode()
+      else if (isNotSpecified || hasNoSupport) {
+        const now = new Date()
+        const hour = now.getHours()
+        const isNight = hour <= 6 || hour >= 18
+        isNight ? activateDarkMode() : activateLightMode()
+      }
+      window.matchMedia('(prefers-color-scheme: dark)').addListener(function (e) {
+        if (saveToLocal.get('theme') === undefined) {
+          e.matches ? activateDarkMode() : activateLightMode()
+        }
+      })
+    } else if (t === 'light') activateLightMode()
+    else activateDarkMode()
+  } else if (autoChangeMode === '2') {
+    const now = new Date()
+    const hour = now.getHours()
+    const isNight = hour <= 6 || hour >= 18
+    if (t === undefined) isNight ? activateDarkMode() : activateLightMode()
+    else if (t === 'light') activateLightMode()
+    else activateDarkMode()
+  } else {
+    if (t === 'dark') activateDarkMode()
+    else if (t === 'light') activateLightMode()
+  }const asideStatus = saveToLocal.get('aside-status')
+if (asideStatus !== undefined) {
+   if (asideStatus === 'hide') {
+     document.documentElement.classList.add('hide-aside')
+   } else {
+     document.documentElement.classList.remove('hide-aside')
+   }
+}})()</script><link rel="stylesheet" href="/clock/css/clock.css"/><link rel="stylesheet" href="/css/style.min.css"><link rel="stylesheet" href="/css/MonoFonts.addition.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sviptzk/StaticFile_HEXO@latest/butterfly/css/macWhite.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sviptzk/StaticFile_HEXO@latest/butterfly/css/font-awesome-animation.min.css"><meta name="generator" content="Hexo 5.3.0"><link rel="alternate" href="/atom.xml" title="C7" type="application/atom+xml">
+<link rel="alternate" href="/rss2.xml" title="C7" type="application/rss+xml">
+</head><body><div id="web_bg"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="author-avatar"><img class="avatar-img" src="/img/avatar.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data"><div class="data-item is-center"><div class="data-item-link"><a href="/archives/"><div class="headline">文章</div><div class="length-num">33</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/tags/"><div class="headline">标签</div><div class="length-num">12</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/./"><i class="fa-fw fa fa-home faa-shake animated-hover"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive faa-shake animated-hover"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags faa-shake animated-hover"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open faa-shake animated-hover"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link faa-shake animated-hover"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart faa-shake animated-hover"></i><span> 关于</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> 放松一下</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/games/2048/"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> 2048 经典2048</span></a></li><li><a class="site-page" target="_blank" rel="noopener" href="http://taqini.space/games/battle-city/#/"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> BattleCity 坦克大战</span></a></li></ul></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background: transparent"><nav id="nav"><span id="blog_name"><a id="site-name" href="/">C7</a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/./"><i class="fa-fw fa fa-home faa-shake animated-hover"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive faa-shake animated-hover"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags faa-shake animated-hover"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open faa-shake animated-hover"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link faa-shake animated-hover"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart faa-shake animated-hover"></i><span> 关于</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> 放松一下</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/games/2048/"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> 2048 经典2048</span></a></li><li><a class="site-page" target="_blank" rel="noopener" href="http://taqini.space/games/battle-city/#/"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> BattleCity 坦克大战</span></a></li></ul></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">DirtyCow学习与调试记录</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2021-04-22T03:18:18.973Z" title="发表于 2021-04-22 11:18:18">2021-04-22</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2021-06-03T13:22:02.822Z" title="更新于 2021-06-03 21:22:02">2021-06-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Learning/">Learning</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><p>其实网上关于脏牛的文章分析已经很多，本文算是对调试学习该漏洞过程的一个记录</p>
+<h2 id="前置知识"><a href="#前置知识" class="headerlink" title="前置知识"></a>前置知识</h2><p>写时拷贝</p>
+<p>竞态条件</p>
+<p>页式内存管理</p>
+<p>缺页中断处理</p>
+<h2 id="基础知识"><a href="#基础知识" class="headerlink" title="基础知识"></a>基础知识</h2><p><strong>mmap函数</strong></p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line">mmap(<span class="keyword">void</span>* start, <span class="keyword">size_t</span> length, <span class="keyword">int</span> prot,<span class="keyword">int</span> flags,<span class="keyword">int</span> fd, <span class="keyword">off_t</span> offset)</span><br></pre></td></tr></table></figure>
+<p>这个函数其实比较常用，它有一个很重要的用处就算将磁盘上的文件映射到虚拟内存中，对于这个函数唯一要说的就是当flags的MAP_PRIVATE被置为1时，对mmap得到内存映射进行的写操作会使内核触发COW操作，写的是COW后的内存，不会同步到磁盘的文件中</p>
+<p><strong>madvice函数</strong></p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line">madvice(<span class="keyword">caddr_t</span> addr, <span class="keyword">size_t</span> len, <span class="keyword">int</span> advice)</span><br></pre></td></tr></table></figure>
+<p>这个函数的主要用处是告诉内核内存<code>addr~addr+len</code>在接下来的使用状况，以便内核进行一些进一步的内存管理操作。当advice为<code>MADV_DONTNEED</code>时，此系统调用相当于通知内核<code>addr~addr+len</code>的内存在接下来不再使用，内核将释放掉这一块内存以节省空间，相应的页表项也会被置空。</p>
+<p><strong>write函数</strong></p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="function"><span class="keyword">ssize_t</span> <span class="title">write</span><span class="params">(<span class="keyword">int</span> fd, <span class="keyword">const</span> <span class="keyword">void</span>* buf, <span class="keyword">size_t</span> count)</span></span></span><br></pre></td></tr></table></figure>
+<p>这个函数也是一个常见函数，主要作用就是向<strong>fd</strong>描述符所指向的文件写入<strong>buf</strong>中最多<strong>count</strong>长度的内容。</p>
+<p><strong>mem文件</strong></p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line">/proc/self/mem</span><br></pre></td></tr></table></figure>
+<p>该文件是一个指向当前进程的虚拟内存文件的文件，当前进程可以通过对这个文件进行读写以直接读写虚拟内存空间，并无视内存映射时的权限设置，也就是说我们可以利用写/proc/self/mem来改写不具有写权限的虚拟内存。可以这么做的原因是/proc/self/mem是一个文件，只要进程对该文件具有写权限，那就可以随便写这个文件，只不过对这个文件进行读写的时候需要一遍访问内存地址所需要的寻页的流程。因为这个文件指向的是虚拟内存。</p>
+<h2 id="环境准备"><a href="#环境准备" class="headerlink" title="环境准备"></a>环境准备</h2><p>这里使用4.7.0的内核版本来复现</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13425912566/0" alt="image-20210418192715058"></p>
+<p>在环境中有一个<code>run.sh</code>脚本来创建一个root用户，并且创建一个只读的文件<code>foo</code>，并且往其中写入<code>hello</code>的内容</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13425917007/0" alt="image-20210418192851450"></p>
+<h2 id="漏洞分析"><a href="#漏洞分析" class="headerlink" title="漏洞分析"></a>漏洞分析</h2><p>对于COW中的写操作，我们调用<code>mem_write</code>函数来实现，下面就是该函数的调用链：</p>
+<p><code>mem_write</code> -&gt; <code>mem_rw</code> -&gt; <code>access_remote_vm</code> -&gt; <code>__access_remote_vm</code></p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13426017781/0" alt="image-20210418200415585"></p>
+<p>首先我们看到<code>__access_remote_vm</code>函数中的这部分，如果是<code>write</code>操作，就执行拷贝数据到page页中，并且设置脏页的操作，这里我们关心的是它的<strong>page是如何获得的</strong>。我们关注下执行这个操作前的上面的<code>get_user_pages_remote</code>这个函数，这个函数就是<strong>获取接下来要写入数据的目标页</strong>。我们跟入这个函数分析，我们可以看到这个函数是对<code>__get_user_pages_locked</code>这个函数的封装，继续跟入到<code>__get_user_pages_locked</code>中。</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13426074089/0" alt="image-20210418202228888"></p>
+<p>可以如果是write的设置对应的flags位，接下来调用<code>__get_user_pages</code>函数，我们跟入这个函数中。由于代码量过大，我们只需要关注重点需要关注的地方，也就是下面一部分中</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13426083389/0" alt="image-20210418202607803"></p>
+<p>首先我们看到一个<code>cond_resched</code>函数，这个函数是一个线程调度的函数，正因为这个函数，才引入了我们条件竞争的可能。然后回调用<code>follow_page_mask</code>函数来获得一个<code>page</code>，如果没有正常返回一个<code>page</code>的话，就会调用<code>faultin_page</code>来进行缺页处理的操作。<code>follow_page_mask</code>简单来说就是一个一级目录，二级目录等到页表的这么一个寻找的过程。</p>
+<p>因为多线程调试较麻烦，所以我们修改下exp，用一个阉割版的exp来调试，这里删除掉了<code>madvice</code>函数的操作。下图为多线程竞争的exp和阉割版的对比。</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13426101892/0" alt="image-20210418203240944"></p>
+<p>在阉割版exp中，在<code>worker_write</code>函数前面加入了一个<code>getchar</code>函数，相当于在触发COW操作前打了一个断点，方便我们调试。</p>
+<p>首先这里我们先将地址随机化给关闭</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">echo 0 &gt; /proc/sys/kernel/randomize_va_space</span><br></pre></td></tr></table></figure>
+<p>我们使用阉割版的exp来调试看看我们的COW机制到底发生了什么。</p>
+<h3 id="COW"><a href="#COW" class="headerlink" title="COW"></a>COW</h3><p>我们在<code>follow_pages_mask</code>函数前也就是<code>mm/gup.c:573</code>处下一个断点后，remote上qemu，然后运行我们的阉割版exp。</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13427653286/0" alt="image-20210419105543151"></p>
+<p>可以看到我们已经在<code>follow_pages_mask</code>函数前断了下来，这里我们重点关注当<strong>第一次调用<code>follow_pages_mask</code>的时候发生了什么</strong></p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13427670747/0" alt="image-20210419105957836"></p>
+<p>当我们执行完<code>follow_pages_mask</code>后，发现我们的<code>page</code>此时是0，并且我们没法访问我们映射的虚拟地址</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13428523277/0" alt="image-20210419144336968"></p>
+<p>我们回到源码去看看这个0到底是如何返回的。我们直接看最后查找页表项的函数<code>follow_page_pte</code></p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13428574979/0" alt="image-20210419145510499"></p>
+<p>可以看到我们返回空是因为我们还没有给虚拟内存分配物理内存，所以跳到<code>no_page</code>，在<code>no_page</code>处就会调用<code>no_page_table</code>函数返回空。<strong>所以这里我们知道了第一次调用<code>follow_pages_mask</code>函数返回0的原因是因为我们的映射还是在虚拟内存中，并没有分配实际的物理内存，所以这里我们找不到page</strong>。</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13428581430/0" alt="image-20210419145646323"></p>
+<p>然后此时找不到<code>page</code>就会进入缺页处理函数<code>faultin_page</code>中</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13428595181/0" alt="image-20210419150008012"></p>
+<p>在上面的缺页处理函数中，我们可以看到这里有些进行错误标记的操作，就是比如说如果上面是因为没有写权限而来到了缺页处理函数，那么就会加上一个<code>FAULT_FLAG_WRITE</code>标记，其他也是同样道理。然后在下方主要通过<code>handle_mm_fault</code>函数来实现他的功能。此时，我们在这个函数下个断点来看下执行完缺页处理函数之后会发生什么。</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13428632965/0" alt="image-20210419150815302"></p>
+<p>可以看到此时我们的位置是在执行完了<code>handle_mm_fault</code>之后，然后我们可以看到刚刚映射的没法访问的地址，现在已经可以访问了，说明此时我们已经分配到了实际的物理内存，并且里面的内容是就是<code>foo</code>文件中的内容。我们再回到源码中看看<code>handle_mm_fault</code>函数到底做了什么，在<code>handle_mm_fault</code>函数中主要调用<code>__handle_mm_fault</code>来实现功能，我们继续跟入，在里面主要的就是调用了<code>handle_pte_fault</code>继续跟入。</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13428679309/0" alt="image-20210419151751845"></p>
+<p>这里因为没有分配实际的物理内存，所以我们会进入上面的if分支中，并且执行<code>do_fault</code></p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13428695555/0" alt="image-20210419152200957"></p>
+<p>这里我们之前已经设置好了要进行COW操作的标志，所以接下来就会调用<code>do_cow_fault</code>来进行一个COW副本页的分配。</p>
+<p>我们继续执行第二次<code>follow_page_mask</code>函数的后，可以看到下图我们的物理内存已经分配了，但是我们的page还是0。</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13428720515/0" alt="image-20210419152811260"></p>
+<p>我们回到<code>follow_page_mask</code>中，继续进入到<code>follow_page_pte</code>中</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13433043990/0" alt="image-20210419195234873"></p>
+<p>我们可以知道此时我们已经分配了物理内存，所以最上面的if语句是不会进入的，我们看下面if 语句，就是判断内存是否具有写权限，如果没有的话，此时依旧是会返回空。我们前面说过了，我们要写的这个<code>foo</code>文件此时是只有读权限的，所以这里就能够解释为什么我们分配了实际的物理内存之后，在第二次调用<code>follow_page_mask</code>之后<code>page</code>依旧是会返回空。接下来我们看第二次进入缺页处理函数<code>faultin_page</code>的时候，它做了什么。</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13430352709/0" alt="image-20210419210139492"></p>
+<p>进入缺页处理函数，这里就会做一个标记，表示因为没有写权限而错误。做完了标记之后就会进入到<code>handle_mm_fault</code>处理函数中。此时的调用链依旧像刚刚一样<code>handle_mm_fault</code>-&gt; <code>__handle_mm_fault</code> -&gt;  <code>handle_pte_fault</code> </p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13430372964/0" alt="image-20210419210607400"></p>
+<p>在<code>handle_pte_fault</code>函数中，我们就会在上图的位置中做一个检测，因为我们前面已经做了一个因为没有写全写而错误的标志，然后就会调用<code>do_wp_page</code>函数，这个函数前部分会判断是否已经通过COW分配到了一个副本页，然后会调用<code>wp_page_reuse</code>函数来使用上一步分配好的副本页，这个函数调用后会返回一个标志，如下图</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13430392556/0" alt="image-20210419211100737"></p>
+<p>这个标志会作为<code>handle_mm_fault</code>的返回给ret，然后会去做一个操作，如下图</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13430397544/0" alt="image-20210419211225098"></p>
+<p>这个操作就是去掉我们的<code>FOLL_WRITE</code>标志，我们知道我们第二次进入缺页处理函数的原因是我们没有写权限，也就是<code>FOLL_WRITE</code>这个标志导致我们出现错误，然后我们在第二次缺页处理的过程中，将这个标志去掉了。好了，我们接下来看第三次调用<code>follow_page_mask</code>函数会发生什么。</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13430414595/0" alt="image-20210419211741998"></p>
+<p>可以看到当我们执行完第三次后，我们成功返回了一个<code>page</code>，到此我们就完成了一个COW的流程。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p><strong>正常</strong>：</p>
+<ul>
+<li>第一次调用<code>follow_page_mask(FOLL_WRITE)</code>函数，因为<code>page</code>不在内存中，进行缺页处理</li>
+<li>第二次调用<code>follow_page_mask(FOLL_WRITE)</code>函数，因为<code>page</code>不具有写权限，并去掉<code>FOLL_WRITE</code></li>
+<li>第三次调用<code>follow_page_mask(无FOLL_WRITE)</code>函数，此时已经分配的真实的物理内存，并且无<code>FOLL_WRITE</code>，成功</li>
+</ul>
+<p><strong>POC</strong>：</p>
+<ul>
+<li>第一次调用<code>follow_page_mask(FOLL_WRITE)</code>函数，因为<code>page</code>不在内存中，进行缺页处理</li>
+<li>第二次调用<code>follow_page_mask(FOLL_WRITE)</code>函数，因为<code>page</code>不具有写权限，并去掉<code>FOLL_WRITE</code></li>
+<li>另一个线程释放上一步分配的COW页</li>
+<li>第三次调用<code>follow_page_mask(无FOLL_WRITE)</code>函数，因为另一个线程释放了分配的页，所以<code>page</code>不在内存中，进行缺页处理</li>
+<li>第四次调用<code>follow_page_mask(无FOLL_WRITE)</code>函数，成功返回page，但没有使用COW机制，此时因为没有使用COW机制，所以会影响到原文件。</li>
+</ul>
+<h3 id="要点"><a href="#要点" class="headerlink" title="要点"></a>要点</h3><ul>
+<li><p>mmap函数的第四个参数指定映射的方式，包括map_shared和map_private，map_shared是指当多个线程将同一个文件映射到自己的虚拟地址中，它们共享同一物理内存块，而map_private则是将文件映射到进程的私有内存。这里重点讲解下map_private，这个参数指定将文件映射到进程的私有内存，假设此时有两个进程将同一文件映射到自己的虚拟内存地址，如果都是只读的，那么虚拟内存地址都将指向同一个物理内存块。如果一个进程试图写入数据，就会发生<strong>写时复制</strong>，将物理内存块复制一个副本，然后更新该进程的页表指向新的内存块，最后向物理内存块的副本中写入数据。</p>
+<blockquote>
+<p>这里要注意的是，即使程序是以只读的方式来做内存映射，map_private允许程序通过write系统调用往物理内存块的副本中写入数据，这其实也为我们的利用创造了条件</p>
+</blockquote>
+</li>
+<li><p>madvise函数的第三个参数为MADV_DONOTNEED告诉内核不在需要声明地址部分的内存，内核将释放该地址的资源，<strong>进程的页表会重新指向原始的物理内存</strong>。</p>
+</li>
+</ul>
+<h3 id="场景"><a href="#场景" class="headerlink" title="场景"></a>场景</h3><p>首先一个进程将只读文件映射到进程的虚拟内存地址中，当mmap指定参数为<code>map_private</code>，尽管是只读的，仍然可以写入数据，只不过这时写到的是原始物理内存的副本。在写之前，会经历写时复制的三个过程，首先创建映射内存副本，然后更新页表，最后向副本写入数据。此时另一个线程在进行写时复制的进程的最后一步写入数据之前调用madvice()，那么进程的页表会重新指向原始的映射的内存物理块，那么此时进行写时复制的进程执行最后一部写入数据，此时写入的是原始内存，而不是副本中，那么就会只读文件写入数据。</p>
+<h2 id="漏洞利用思路"><a href="#漏洞利用思路" class="headerlink" title="漏洞利用思路"></a>漏洞利用思路</h2><p>这里的基本思路就是在一个进程中创建两个线程，一个线程向只读的映射内存通过write系统调用写入数据，这时候发生写时复制，另一个线程通过madvice来丢弃映射的私有副本，两个线程相互竞争从而向只读文件写入数据。</p>
+<h3 id="主线程"><a href="#主线程" class="headerlink" title="主线程"></a>主线程</h3><ul>
+<li>普通用户身份以只读模式打开指定的只读文件</li>
+<li>使用MAP_PRIVATE参数映射内存</li>
+<li>找到目标文件映射的内存地址</li>
+<li>创建两个线程</li>
+</ul>
+<h3 id="procselfmem线程"><a href="#procselfmem线程" class="headerlink" title="procselfmem线程"></a>procselfmem线程</h3><ul>
+<li>向文件映射的内存区域写数据</li>
+<li>此时内核采用COW机制</li>
+</ul>
+<h3 id="madvise线程"><a href="#madvise线程" class="headerlink" title="madvise线程"></a>madvise线程</h3><ul>
+<li>使用MADV_DONTNEED参数调用madvise来释放文件映射内存区</li>
+<li>干扰procselfmem线程的COW过程，产生竞争条件</li>
+<li>当竞争条件发生时就能成功将数据写入文件</li>
+</ul>
+<p>下面是利用成功的截图</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13432983274/0" alt="image-20210420151228672"></p>
+<p>可以看到我们已经将<code>foo</code>文件中的<code>hello</code>修改为了<code>hacku</code></p>
+<p>如上，文章首发于安全客，转载请著名出处，文章链接</p>
+<p><a target="_blank" rel="noopener" href="https://www.anquanke.com/post/id/238669">https://www.anquanke.com/post/id/238669</a></p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">C7</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="https://billyotry.github.io/2021/04/22/DirtyCow%E5%AD%A6%E4%B9%A0%E4%B8%8E%E8%B0%83%E8%AF%95%E8%AE%B0%E5%BD%95/">https://billyotry.github.io/2021/04/22/DirtyCow%E5%AD%A6%E4%B9%A0%E4%B8%8E%E8%B0%83%E8%AF%95%E8%AE%B0%E5%BD%95/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="https://billyotry.github.io" target="_blank">C7</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Linux/">Linux</a></div><div class="post_share"><div class="social-share" data-image="https://i.loli.net/2021/04/17/LmQWxH4wAb8ZpnO.png" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/2021/04/29/%E3%80%90%E7%BD%91%E7%BB%9C%E7%BC%96%E7%A8%8B%E3%80%91%E5%9F%BA%E7%A1%80%E5%85%A5%E9%97%A8-%E6%9C%AA%E5%AE%8C/"><img class="prev-cover" src="https://i.loli.net/2021/04/29/PaJDl3R4rHWT25b.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">【网络编程】基础入门-未完</div></div></a></div><div class="next-post pull-right"><a href="/2021/04/15/Linux%E5%86%85%E6%A0%B8-%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E5%AD%A6%E4%B9%A0/"><img class="next-cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">Linux内核-内存管理学习</div></div></a></div></nav><hr/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="card-info-avatar is-center"><img class="avatar-img" src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/><div class="author-info__name">C7</div><div class="author-info__description">雖不能至 心嚮往之</div></div><div class="card-info-data"><div class="card-info-data-item is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">33</div></a></div><div class="card-info-data-item is-center"><a href="/tags/"><div class="headline">标签</div><div class="length-num">12</div></a></div><div class="card-info-data-item is-center"><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div></div><a class="button--animated" id="card-info-btn"><i class="fa fa-paper-plane-o"></i><span>加入书签</span></a><div class="card-info-social-icons is-center"><a class="social-icon" href="https://github.com/BillyoTry" target="_blank" title="Github"><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:1347405944@qq.com" target="_blank" title="Email"><i class="fa fa-envelope"></i></a><a class="social-icon" href="tencent://message/?uin=1347405944&amp;Site=&amp;Menu=yes" target="_blank" title=""><i class="fab fa-qq"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn card-announcement-animation"></i><span>公告</span></div><div class="announcement_content">大家疫情期间注意保护自己噢~~~~</div></div><div class="sticky_layout"><div class="card-widget card-clock" style="padding:0"><div class="card-glass"><div class="card-background"><div class="card-content"><div id="clock" style="padding:20px"><img v-if="clockshow == &quot;false&quot;" src="/clock/images/weather/loading.gif" style="height:120px;width:100%"/><table class="clock" v-if="clockshow"><tbody><tr><td class="clockdate">{{date}}</td><td class="weatherimg" align="center" valign="middle"><img id="weatherimg" :src="weatherimg"/></td><td class="temperature" align="center" valign="middle">{{temperature}}</td><td class="humidityimg"><img id="humidityimg" :src="humidityimg"/></td><td class="humidity">{{humidity}}</td></tr><tr class="time"><td colspan="5">{{time}}</td></tr><tr><td class="usaqi" colspan="1"> <span>{{ip}}</span></td><td class="city" colspan="2">{{city}}</td><td class="daylight" colspan="2">{{daylight}}</td></tr></tbody></table></div></div></div></div></div><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%89%8D%E7%BD%AE%E7%9F%A5%E8%AF%86"><span class="toc-number">1.</span> <span class="toc-text">前置知识</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9F%BA%E7%A1%80%E7%9F%A5%E8%AF%86"><span class="toc-number">2.</span> <span class="toc-text">基础知识</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%8E%AF%E5%A2%83%E5%87%86%E5%A4%87"><span class="toc-number">3.</span> <span class="toc-text">环境准备</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%BC%8F%E6%B4%9E%E5%88%86%E6%9E%90"><span class="toc-number">4.</span> <span class="toc-text">漏洞分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#COW"><span class="toc-number">4.1.</span> <span class="toc-text">COW</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">4.2.</span> <span class="toc-text">总结</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%A6%81%E7%82%B9"><span class="toc-number">4.3.</span> <span class="toc-text">要点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9C%BA%E6%99%AF"><span class="toc-number">4.4.</span> <span class="toc-text">场景</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%BC%8F%E6%B4%9E%E5%88%A9%E7%94%A8%E6%80%9D%E8%B7%AF"><span class="toc-number">5.</span> <span class="toc-text">漏洞利用思路</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%BB%E7%BA%BF%E7%A8%8B"><span class="toc-number">5.1.</span> <span class="toc-text">主线程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#procselfmem%E7%BA%BF%E7%A8%8B"><span class="toc-number">5.2.</span> <span class="toc-text">procselfmem线程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#madvise%E7%BA%BF%E7%A8%8B"><span class="toc-number">5.3.</span> <span class="toc-text">madvise线程</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2099/01/01/test/" title="这是标题"><img src="https://i.loli.net/2021/01/22/QJ1bzWyEp9IKx7R.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="这是标题"/></a><div class="content"><a class="title" href="/2099/01/01/test/" title="这是标题">这是标题</a><time datetime="2098-12-31T16:00:00.000Z" title="发表于 2099-01-01 00:00:00">2099-01-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/05/29/%E8%AE%BAORW%E7%9A%84%E5%A4%9A%E7%A7%8D%E5%88%A9%E7%94%A8%E5%A7%BF%E5%8A%BF/" title="论ORW的多种利用姿势"><img src="https://i.loli.net/2021/06/03/qOFcBw4g6tAjUEL.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="论ORW的多种利用姿势"/></a><div class="content"><a class="title" href="/2021/05/29/%E8%AE%BAORW%E7%9A%84%E5%A4%9A%E7%A7%8D%E5%88%A9%E7%94%A8%E5%A7%BF%E5%8A%BF/" title="论ORW的多种利用姿势">论ORW的多种利用姿势</a><time datetime="2021-05-29T13:47:40.255Z" title="发表于 2021-05-29 21:47:40">2021-05-29</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/05/10/%E3%80%90how2heap%E3%80%91%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/" title="【how2heap】学习笔记"><img src="https://i.loli.net/2021/05/20/EbwjRFDSotqX95g.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【how2heap】学习笔记"/></a><div class="content"><a class="title" href="/2021/05/10/%E3%80%90how2heap%E3%80%91%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/" title="【how2heap】学习笔记">【how2heap】学习笔记</a><time datetime="2021-05-10T03:08:56.640Z" title="发表于 2021-05-10 11:08:56">2021-05-10</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/05/08/%E3%80%90Kernel%20Pwn%E3%80%91StarCTF%20hackme/" title="【Kernel Pwn】StarCTF hackme"><img src="https://i.loli.net/2020/04/14/s8lQEMGd2KVD6Fx.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【Kernel Pwn】StarCTF hackme"/></a><div class="content"><a class="title" href="/2021/05/08/%E3%80%90Kernel%20Pwn%E3%80%91StarCTF%20hackme/" title="【Kernel Pwn】StarCTF hackme">【Kernel Pwn】StarCTF hackme</a><time datetime="2021-05-08T12:57:29.247Z" title="发表于 2021-05-08 20:57:29">2021-05-08</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/05/05/%E3%80%90Fuzzing%E3%80%91AFL%E5%88%9D%E6%8E%A2/" title="【Fuzzing】AFL初探"><img src="https://i.loli.net/2021/05/05/m3SqwI27rgFd81N.png" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【Fuzzing】AFL初探"/></a><div class="content"><a class="title" href="/2021/05/05/%E3%80%90Fuzzing%E3%80%91AFL%E5%88%9D%E6%8E%A2/" title="【Fuzzing】AFL初探">【Fuzzing】AFL初探</a><time datetime="2021-05-05T08:24:25.119Z" title="发表于 2021-05-05 16:24:25">2021-05-05</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2021 By C7</div><div class="footer_custom_text"><p><a style="margin-inline:5px" target="_blank" href="https://hexo.io/"><img src="https://img.shields.io/badge/Frame-Hexo-blue?style=flat&logo=hexo" title="博客框架为Hexo"></a><a style="margin-inline:5px" target="_blank" href="https://butterfly.js.org/"><img src="https://img.shields.io/badge/Theme-Butterfly-6513df?style=flat&logo=bitdefender" title="主题采用butterfly"></a><a style="margin-inline:5px" target="_blank" href="https://www.jsdelivr.com/"><img src="https://img.shields.io/badge/CDN-jsDelivr-orange?style=flat&logo=jsDelivr" title="本站使用JsDelivr为静态资源提供CDN加速"></a><a style="margin-inline:5px" target="_blank" href="https://vercel.com/ "><img src="https://img.shields.io/badge/Hosted-Vervel-brightgreen?style=flat&logo=Vercel" title="本站采用双线部署，默认线路托管于Vercel"></a><a style="margin-inline:5px" target="_blank" href="https://vercel.com/ "><img src="https://img.shields.io/badge/Hosted-Coding-0cedbe?style=flat&logo=Codio" title="本站采用双线部署，联通线路托管于Coding"></a><a style="margin-inline:5px" target="_blank" href="https://github.com/"><img src="https://img.shields.io/badge/Source-Github-d021d6?style=flat&logo=GitHub" title="本站项目由Gtihub托管"></a><a style="margin-inline:5px" target="_blank" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img src="https://img.shields.io/badge/Copyright-BY--NC--SA%204.0-d42328?style=flat&logo=Claris" title="本站采用知识共享署名-非商业性使用-相同方式共享4.0国际许可协议进行许可"></a></p></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="直达评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><div class="js-pjax"><script>function loadValine () {
+  function initValine () {
+    let initData = {
+      el: '#vcomment',
+      appId: '',
+      appKey: '',
+      placeholder: 'Please leave your footprints',
+      avatar: 'monsterid',
+      meta: 'nick,mail,link'.split(','),
+      pageSize: '10',
+      lang: 'en',
+      recordIP: false,
+      serverURLs: '',
+      emojiCDN: '',
+      emojiMaps: "",
+      enableQQ: false,
+      path: window.location.pathname,
+    }
+
+    if (true) { 
+      initData.requiredFields= ('nick,mail'.split(','))
+    }
+    
+    if (false) {
+      const otherData = false
+      initData = Object.assign(initData, otherData)
+    }
+    
+    const valine = new Valine(initData)
+  }
+
+  if (typeof Valine === 'function') initValine() 
+  else getScript('https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js').then(initValine)
+}
+
+if ('Valine' === 'Valine' || !false) {
+  if (false) btf.loadComment(document.getElementById('vcomment'),loadValine)
+  else setTimeout(loadValine, 0)
+} else {
+  function loadOtherComment () {
+    loadValine()
+  }
+}</script></div><script src="/js/unbanner.js"></script><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script><script src="/clock/js/clock.js"></script><script async src="//at.alicdn.com/t/font_2264842_3izu8i5eoc2.js"></script><script async src="/js/xktool.js"></script><script async src="/js/fish.js"></script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
