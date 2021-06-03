@@ -13,7 +13,7 @@ b,strong{
 }
 @font-face{
     font-family:Candyhome;
-    src:url(https://cdn.jsdelivr.net/gh/Akilarlxh/akilarlxh.github.io/fonts/Candyhome.ttf);
+    src:url(https://cdn.jsdelivr.net/npm/akilar-candyassets/fonts/Candyhome.ttf);
     font-display:swap;
     font-weight:lighter
 }
