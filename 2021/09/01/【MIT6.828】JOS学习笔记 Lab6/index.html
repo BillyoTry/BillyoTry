@@ -1,0 +1,371 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>【MIT 6.828】JOS学习笔记 Lab6 | C7</title><meta name="keywords" content="OS"><meta name="author" content="C7"><meta name="copyright" content="C7"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="概述本lab是6.828默认的最后一个实验，围绕网络展开。主要就做一件事 从0实现网络驱动。 还提到一些比较重要的概念：  内存映射I&#x2F;O DMA 用户级线程实现原理  The Network Server从0开始写协议栈是十分困难的，我们将使用IwIP，这是一种轻量级TCP&#x2F;IP的实现，更多的IwIP信息可以参考lwIP官网。对于我们来说IwIP就像是实现了BSD socket接口的黑盒，分别有">
+<meta property="og:type" content="article">
+<meta property="og:title" content="【MIT 6.828】JOS学习笔记 Lab6">
+<meta property="og:url" content="https://billyotry.github.io/2021/09/01/%E3%80%90MIT6.828%E3%80%91JOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%20Lab6/index.html">
+<meta property="og:site_name" content="C7">
+<meta property="og:description" content="概述本lab是6.828默认的最后一个实验，围绕网络展开。主要就做一件事 从0实现网络驱动。 还提到一些比较重要的概念：  内存映射I&#x2F;O DMA 用户级线程实现原理  The Network Server从0开始写协议栈是十分困难的，我们将使用IwIP，这是一种轻量级TCP&#x2F;IP的实现，更多的IwIP信息可以参考lwIP官网。对于我们来说IwIP就像是实现了BSD socket接口的黑盒，分别有">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg">
+<meta property="article:published_time" content="2021-09-01T13:09:40.378Z">
+<meta property="article:modified_time" content="2021-09-10T10:14:12.553Z">
+<meta property="article:author" content="C7">
+<meta property="article:tag" content="OS">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg"><link rel="shortcut icon" href="/img/favicon.ico"><link rel="canonical" href="https://billyotry.github.io/2021/09/01/%E3%80%90MIT6.828%E3%80%91JOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%20Lab6/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  date_suffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  source: {
+    jQuery: 'https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js',
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+    },
+    fancybox: {
+      js: 'https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: false,
+  isanchor: false
+};
+
+const saveToLocal = {
+  // ttl 單位是 天
+  set: function setWithExpiry(key, value, ttl) {
+    if (ttl === 0) return
+    const now = new Date()
+    const expiryDay = ttl * 86400000
+    const item = {
+      value: value,
+      expiry: now.getTime() + expiryDay,
+    }
+    localStorage.setItem(key, JSON.stringify(item))
+  },
+
+  get: function getWithExpiry(key) {
+    const itemStr = localStorage.getItem(key)
+
+    if (!itemStr) {
+      return undefined
+    }
+    const item = JSON.parse(itemStr)
+    const now = new Date()
+
+    if (now.getTime() > item.expiry) {
+      localStorage.removeItem(key)
+      return undefined
+    }
+    return item.value
+  }
+}
+
+// https://stackoverflow.com/questions/16839698/jquery-getscript-alternative-in-native-javascript
+const getScript = url => new Promise((resolve, reject) => {
+  const script = document.createElement('script')
+  script.src = url
+  script.async = true
+  script.onerror = reject
+  script.onload = script.onreadystatechange = function() {
+    const loadState = this.readyState
+    if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+    script.onload = script.onreadystatechange = null
+    resolve()
+  }
+  document.head.appendChild(script)
+})</script><script id="config_change">var GLOBAL_CONFIG_SITE = { 
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2021-09-10 18:14:12'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(function () {  window.activateDarkMode = function () {
+    document.documentElement.setAttribute('data-theme', 'dark')
+    if (document.querySelector('meta[name="theme-color"]') !== null) {
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+    }
+  }
+  window.activateLightMode = function () {
+    document.documentElement.setAttribute('data-theme', 'light')
+   if (document.querySelector('meta[name="theme-color"]') !== null) {
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+    }
+  }
+  const autoChangeMode = 'false'
+  const t = saveToLocal.get('theme')
+  if (autoChangeMode === '1') {
+    const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches
+    const isLightMode = window.matchMedia('(prefers-color-scheme: light)').matches
+    const isNotSpecified = window.matchMedia('(prefers-color-scheme: no-preference)').matches
+    const hasNoSupport = !isDarkMode && !isLightMode && !isNotSpecified
+    if (t === undefined) {
+      if (isLightMode) activateLightMode()
+      else if (isDarkMode) activateDarkMode()
+      else if (isNotSpecified || hasNoSupport) {
+        const now = new Date()
+        const hour = now.getHours()
+        const isNight = hour <= 6 || hour >= 18
+        isNight ? activateDarkMode() : activateLightMode()
+      }
+      window.matchMedia('(prefers-color-scheme: dark)').addListener(function (e) {
+        if (saveToLocal.get('theme') === undefined) {
+          e.matches ? activateDarkMode() : activateLightMode()
+        }
+      })
+    } else if (t === 'light') activateLightMode()
+    else activateDarkMode()
+  } else if (autoChangeMode === '2') {
+    const now = new Date()
+    const hour = now.getHours()
+    const isNight = hour <= 6 || hour >= 18
+    if (t === undefined) isNight ? activateDarkMode() : activateLightMode()
+    else if (t === 'light') activateLightMode()
+    else activateDarkMode()
+  } else {
+    if (t === 'dark') activateDarkMode()
+    else if (t === 'light') activateLightMode()
+  }const asideStatus = saveToLocal.get('aside-status')
+if (asideStatus !== undefined) {
+   if (asideStatus === 'hide') {
+     document.documentElement.classList.add('hide-aside')
+   } else {
+     document.documentElement.classList.remove('hide-aside')
+   }
+}})()</script><link rel="stylesheet" href="/clock/css/clock.css"/><link rel="stylesheet" href="/css/style.min.css"><link rel="stylesheet" href="/css/MonoFonts.addition.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sviptzk/StaticFile_HEXO@latest/butterfly/css/macWhite.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sviptzk/StaticFile_HEXO@latest/butterfly/css/font-awesome-animation.min.css"><meta name="generator" content="Hexo 5.3.0"><link rel="alternate" href="/atom.xml" title="C7" type="application/atom+xml">
+<link rel="alternate" href="/rss2.xml" title="C7" type="application/rss+xml">
+</head><body><div id="web_bg"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="author-avatar"><img class="avatar-img" src="/img/avatar.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data"><div class="data-item is-center"><div class="data-item-link"><a href="/archives/"><div class="headline">文章</div><div class="length-num">50</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/tags/"><div class="headline">标签</div><div class="length-num">12</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/./"><i class="fa-fw fa fa-home faa-shake animated-hover"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive faa-shake animated-hover"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags faa-shake animated-hover"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open faa-shake animated-hover"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link faa-shake animated-hover"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart faa-shake animated-hover"></i><span> 关于</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> 放松一下</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/games/2048/"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> 2048 经典2048</span></a></li><li><a class="site-page" target="_blank" rel="noopener" href="http://taqini.space/games/battle-city/#/"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> BattleCity 坦克大战</span></a></li></ul></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background: transparent"><nav id="nav"><span id="blog_name"><a id="site-name" href="/">C7</a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/./"><i class="fa-fw fa fa-home faa-shake animated-hover"></i><span> 主页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fa fa-archive faa-shake animated-hover"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fa fa-tags faa-shake animated-hover"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fa fa-folder-open faa-shake animated-hover"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fa fa-link faa-shake animated-hover"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fa fa-heart faa-shake animated-hover"></i><span> 关于</span></a></div><div class="menus_item"><a class="site-page" href="javascript:void(0);"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> 放松一下</span><i class="fas fa-chevron-down expand"></i></a><ul class="menus_item_child"><li><a class="site-page" href="/games/2048/"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> 2048 经典2048</span></a></li><li><a class="site-page" target="_blank" rel="noopener" href="http://taqini.space/games/battle-city/#/"><i class="fa-fw fa fa-gamepad faa-shake animated-hover"></i><span> BattleCity 坦克大战</span></a></li></ul></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">【MIT 6.828】JOS学习笔记 Lab6</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2021-09-01T13:09:40.378Z" title="发表于 2021-09-01 21:09:40">2021-09-01</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2021-09-10T10:14:12.553Z" title="更新于 2021-09-10 18:14:12">2021-09-10</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Learning/">Learning</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><h1 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h1><p>本lab是6.828默认的最后一个实验，围绕<strong>网络</strong>展开。主要就做一件事</p>
+<p>从0实现网络驱动。</p>
+<p>还提到一些比较重要的概念：</p>
+<ol>
+<li>内存映射I/O</li>
+<li>DMA</li>
+<li>用户级线程实现原理</li>
+</ol>
+<h1 id="The-Network-Server"><a href="#The-Network-Server" class="headerlink" title="The Network Server"></a>The Network Server</h1><p>从0开始写协议栈是十分困难的，我们将使用IwIP，这是一种轻量级TCP/IP的实现，更多的IwIP信息可以参考<a target="_blank" rel="noopener" href="https://savannah.nongnu.org/projects/lwip/">lwIP官网</a>。对于我们来说IwIP就像是实现了BSD socket接口的黑盒，分别有一个包输入和包输出端口。</p>
+<p>JOS网络服务由四个进程组成：</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13941764934/0" alt="image-20210901212107460"></p>
+<ol>
+<li><p>核心网络进程：</p>
+<p>核心网络进程由socket调用分发器和IwIP组成。socket调用分发器和文件服务一样。用户进程发送IPC消息给核心网络进程。</p>
+<p>用户进程不直接使用nsipc_*开头的函数调用，而是使用lib/socket.c中的函数。这样用户进程通过文件描述符来访问socket。</p>
+<p>文件服务和网络服务有很多相似的地方，但是最大的不同点在于，BSD socket调用accept和recv可能会阻塞，如果分发调用IwIP这些阻塞的函数，自己也会阻塞，这样就只能提供一个网络服务了。显然是不能接受的，网络服务将使用用户级的线程来避免这种情况。</p>
+</li>
+<li><p>包输出进程：</p>
+<p>IwIP通过IPC发送packets到输出进程，然后输出进程负责通过系统调用将这些packets转发给设备驱动。</p>
+</li>
+<li><p>包输入进程：</p>
+<p>对于每个从设备驱动受到的packets，输入进程从内核取出这些packet，然后使用IPC转发给核心网络进程。</p>
+</li>
+<li><p>定时器进程：</p>
+<p>定时器进程周期性地发消息给核心网络进程，通知它一段时间已经过了，这些消息被IwIP用来是实现网络超时。</p>
+</li>
+</ol>
+<p>仔细看上图，绿颜色的部分是本lab需要实现的部分。分别是：</p>
+<ol>
+<li>E1000网卡驱动，并对外提供两个系统调用，分别用来接受和发送数据。</li>
+<li>输入进程</li>
+<li>输出进程</li>
+<li>用户程序httpd的一部分</li>
+</ol>
+<h1 id="Part-A-Initialization-and-transmitting-packets"><a href="#Part-A-Initialization-and-transmitting-packets" class="headerlink" title="Part A: Initialization and transmitting packets"></a>Part A: Initialization and transmitting packets</h1><p>内核目前还没有时间的概念，硬件每隔10ms都会发送一个时钟中断。每次时钟中断，我们可以给某个变量加一，来表明时间过去了10ms，具体实现在kern/time.c中</p>
+<p><strong>exercise1</strong></p>
+<p>在kern/trap.c中添加对time_tick的调用。实现sys_time_mesc()系统调用。sys_time_msec()配合sys_yield()实现sleep()(见user/testtime.c)。</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#x2F;&#x2F;kern&#x2F;trap.c</span><br><span class="line">if (tf-&gt;tf_trapno &#x3D;&#x3D; IRQ_OFFSET + IRQ_TIMER) &#123;</span><br><span class="line">		lapic_eoi();</span><br><span class="line">		time_tick();</span><br><span class="line">		sched_yield();</span><br><span class="line">		return;</span><br><span class="line">	&#125;</span><br><span class="line">	</span><br><span class="line">&#x2F;&#x2F;kern&#x2F;syscall.c</span><br><span class="line">static int</span><br><span class="line">sys_time_msec(void)</span><br><span class="line">&#123;</span><br><span class="line">	&#x2F;&#x2F; LAB 6: Your code here.</span><br><span class="line">	&#x2F;&#x2F;panic(&quot;sys_time_msec not implemented&quot;);</span><br><span class="line">	return time_msec();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">case (SYS_time_msec):</span><br><span class="line">		return sys_time_msec();	</span><br></pre></td></tr></table></figure>
+<h2 id="The-Network-Interface-Card"><a href="#The-Network-Interface-Card" class="headerlink" title="The Network Interface Card"></a>The Network Interface Card</h2><p>编写驱动我们需要很深的硬件以及硬件接口知识，本lab会提供一些E1000比较底层的知识，我们需要学会看<a target="_blank" rel="noopener" href="https://pdos.csail.mit.edu/6.828/2018/readings/hardware/8254x_GBe_SDM.pdf">E1000的开发者手册</a>。</p>
+<h3 id="PCI-Interface"><a href="#PCI-Interface" class="headerlink" title="PCI Interface"></a>PCI Interface</h3><blockquote>
+<p>PCI是外围设备互联(Peripheral Component Interconnect)的简称，是在目前计算机系统中得到广泛应用的通用总线接口标准：</p>
+<ul>
+<li>在一个PCI系统中，最多可以有256根总线，一般主机上只会用到其中很少的几条</li>
+<li>在一根PCI总线上可以连接多个物理设备，可以是一个网卡、显卡或者声卡等，最多不超过32个</li>
+<li>一个PCI物理设备可以有多个功能，比如同时提供视频解析和声音解析，最多可提供8个功能</li>
+<li>每个功能对于一个256字节的PCI配置空间</li>
+</ul>
+</blockquote>
+<p>E1000是PCI设备，意味着E1000将插到主板上的PCI总线上。PCI总线有地址，数据，中断线允许CPU和PCI设备进行交互。PCI设备在被使用前需要被发现和初始化。发现的过程是遍历PCI总线寻找相应的设备。初始化的过程是分配I/O和内存空间，包括协商IRQ线。</p>
+<p>我们已经在kern/pic.c提供了PCI代码。为了在启动阶段初始化PCI，PCI代码遍历PCI总线寻找设备，当它找到一个设备，便会读取该设备的厂商ID和设备ID，然后使用这两个值作为键搜索pci_attach_vendor数组，该数组由struct pci_driver结构组成。struct pci_driver结构如下：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">pci_driver</span> &#123;</span></span><br><span class="line">    <span class="keyword">uint32_t</span> key1, key2;</span><br><span class="line">    <span class="keyword">int</span> (*attachfn) (struct pci_func *pcif);</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>如果找到一个struct pci_driver结构，PCI代码将会执行struct pci_driver结构的attachfn函数指针指向的函数执行初始化。attachfn函数指针指向的函数传入一个struct pci_func结构指针。struct pci_func结构的结构如下：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">pci_func</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">pci_bus</span> *<span class="title">bus</span>;</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint32_t</span> dev;</span><br><span class="line">    <span class="keyword">uint32_t</span> func;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint32_t</span> dev_id;</span><br><span class="line">    <span class="keyword">uint32_t</span> dev_class;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint32_t</span> reg_base[<span class="number">6</span>];</span><br><span class="line">    <span class="keyword">uint32_t</span> reg_size[<span class="number">6</span>];</span><br><span class="line">    <span class="keyword">uint8_t</span> irq_line;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>其中reg_base数组保存了内存映射I/O的基地址，reg_size保存了以字节为单位的大小。irq_line包含了IRQ线。当attachfn函数指针指向的函数执行后，该设备就算被找到了，但还没有启用，attachfn函数指针指向的函数应该调用pci_func_enable()，该函数启动设备，协商资源，并且填入传入的struct pci_func结构。</p>
+<p><strong>exercise3</strong></p>
+<p>实现attach函数来初始化E1000。在kern/pci.c的pci_attach_vendor数组中添加一个元素。82540EM的厂商ID和设备ID可以在手册5.2节找到。实验已经提供了kern/e1000.c和kern/e1000.h，补充这两个文件完成实验。添加一个函数，并将该函数地址添加到pci_attach_vendor这个数组中。</p>
+<p>根据手册和内核的启动信息我们能够找到E1000 的 Vender ID = 0x8086， Device ID = 0x100E。</p>
+<p>那么我们修改我们的e1000.h文件：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">ifndef</span> JOS_KERN_E1000_H</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> JOS_KERN_E1000_H</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;kern/pci.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> E1000_VENDER_ID_82540EM 0x8086</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> E1000_DEV_ID_82540EM 0X100E</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">e1000_attachfn</span><span class="params">(struct pci_func *pcif)</span></span>;</span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span>  <span class="comment">// SOL &gt;= 6</span></span></span><br></pre></td></tr></table></figure>
+<p>然后是e1000.c文件加上初始化函数：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;kern/e1000.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;kern/pmap.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// LAB 6: Your driver code here</span></span><br><span class="line"><span class="keyword">int</span></span><br><span class="line">e1000_attachfn(struct pci_func *pcif)</span><br><span class="line">&#123;</span><br><span class="line">    pci_func_enable(pcif);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在kern/pci.c的pci_attach_vendor数组中添加一个元素：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">pci_driver</span> <span class="title">pci_attach_vendor</span>[] =</span> &#123;</span><br><span class="line">	&#123; E1000_VENDER_ID_82540EM, E1000_DEV_ID_82540EM, &amp;e1000_attachfn&#125;,</span><br><span class="line">	&#123; <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span> &#125;,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<h2 id="Memory-mapped-I-O"><a href="#Memory-mapped-I-O" class="headerlink" title="Memory-mapped I/O"></a>Memory-mapped I/O</h2><p>程序通过内存映射I/O(MMIO)和E1000交互。通过MMIO这种方式，允许通过读写”memory”进行控制设备，这里的”memory”并非DRAM，而是直接读写设备。pci_func_enable()协商MMIO范围，并将基地址和大小保存在基地址寄存器0(reg_base[0] and reg_size[0])中，这是一个物理地址范围，我们需要通过虚拟地址来访问，所以需要创建一个新的内核内存映射。</p>
+<p><strong>exercise4</strong></p>
+<p>我们在table 13.2中能查到状态寄存器的offset。</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13943318640/0" alt="image-20210902140414667"></p>
+<p>使用mmio_map_region()建立内存映射。至此我们能通过虚拟地址bar_va来访问E1000的寄存器。</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;kern/e1000.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;kern/pmap.h&gt;</span></span></span><br><span class="line"><span class="keyword">volatile</span> <span class="keyword">void</span> *bar_va; </span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> E1000REG(offset) (void *)(bar_va + offset)</span></span><br><span class="line"><span class="comment">// LAB 6: Your driver code here</span></span><br><span class="line"><span class="keyword">int</span></span><br><span class="line">e1000_attachfn(struct pci_func *pcif)</span><br><span class="line">&#123;</span><br><span class="line">    pci_func_enable(pcif);</span><br><span class="line">    <span class="comment">//该函数从线性地址MMIOBASE开始映射物理地址pa开始的size大小的内存，并返回pa对应的线性地址。</span></span><br><span class="line">    bar_va = mmio_map_region(pcif-&gt;reg_base[<span class="number">0</span>],pcif-&gt;reg_size[<span class="number">0</span>]);</span><br><span class="line">    <span class="keyword">uint32_t</span> *status_reg = (<span class="keyword">uint32_t</span> *)E1000REG(E1000_STATUS);</span><br><span class="line">    assert(*status_reg == <span class="number">0x80080783</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>lab3和lab4的结果是，我们可以通过直接访问bar_va开始的内存区域来设置E1000的特性和工作方式。</p>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13943335153/0" alt="image-20210902141026050"></p>
+<h3 id="DMA"><a href="#DMA" class="headerlink" title="DMA"></a>DMA</h3><p>DMA是什么？简单的说就是允许外部设备直接访问内存，而不需要CPU的参与。</p>
+<p>我们可以通过读写E1000的寄存器来发送和接受数据包，但是这种方式非常慢。E1000使用DMA直接读写内存，不需要CPU参与。驱动负责分配内存作为发送和接受队列，设置DMA描述符，配置E1000这些队列的设置，之后的操作都是异步的。</p>
+<p>发送一个数据包：驱动将该数据包拷贝到发送队列中的一个DMA描述符中，通知E1000，E1000从发送队列的DMA描述符中拿到数据发送出去。</p>
+<p>接受数据包：E1000将数据拷贝到接受队列的一个DMA描述符中，驱动可以从该DMA描述符中读取数据包。</p>
+<p>发送和接受队列非常相似，都由DMA描述符组成，DMA描述符的确切结构不是固定的，但是都包含一些标志和包数据的物理地址。发送和接受队列可以由环形数组实现，都有一个头指针和尾指针。</p>
+<p>这些数组的指针和描述符中的包缓冲地址都应该是物理地址，因为硬件操作DMA读写物理内存不需要通过MMU。</p>
+<h2 id="Transmitting-Packets"><a href="#Transmitting-Packets" class="headerlink" title="Transmitting Packets"></a>Transmitting Packets</h2><p>首先我们需要初始化E1000来支持发送包。第一步是建立发送队列，队列的具体结构在3.4节，描述符的结构在3.3.3节。驱动必须为发送描述符数组和数据缓冲区域分配内存。有多种方式分配数据缓冲区。最简单的是在驱动初始化的时候就为每一个描述符分配一个对应的数据缓冲区。最大的包是1518字节。</p>
+<p>发送队列和发送队列描述符如下：</p>
+<p><img src="https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab6/lab6_3_send_queue.png" alt="发送队列"></p>
+<p><img src="https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab6/lab6_4_send_discripter.png" alt="发送队列描述符"></p>
+<p><strong>exercise5</strong></p>
+<p>按照14.5节的描述来初始化。步骤如下</p>
+<ol>
+<li>分配一块内存用作发送描述符队列，起始地址要16字节对齐。用基地址(TDBAL/TDBAH)寄存器。</li>
+<li>设置(TDLEN)寄存器，该寄存器保存发送描述符队列长度，必须128字节对齐。</li>
+<li>设置(TDH/TDT)寄存器，这两个寄存器都是发送描述符队列的下标。分别指向头部和尾部。应该初始化为0。</li>
+<li>初始化TCTL寄存器。设置TCTL.EN位为1，设置TCTL.PSP位为1。设置TCTL.CT为10h。设置TCTL.COLD为40H</li>
+<li>设置TIPG寄存器</li>
+</ol>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;kern/e1000.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;kern/pmap.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// LAB 6: Your driver code here</span></span><br><span class="line"><span class="keyword">volatile</span> <span class="keyword">void</span> *bar_va; </span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">e1000_tdh</span> *<span class="title">tdh</span>;</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">e1000_tdt</span> *<span class="title">tdt</span>;</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">e1000_tdlen</span> *<span class="title">tdlen</span>;</span></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">e1000_tx_desc</span> <span class="title">tx_desc_array</span>[<span class="title">TXDESCS</span>];</span></span><br><span class="line"><span class="keyword">char</span> tx_buffer_array[TXDESCS][TX_PKT_SIZE];</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> E1000REG(offset) (void *)(bar_va + offset)</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span></span><br><span class="line">e1000_attachfn(struct pci_func *pcif)</span><br><span class="line">&#123;</span><br><span class="line">    pci_func_enable(pcif);</span><br><span class="line">    <span class="comment">//该函数从线性地址MMIOBASE开始映射物理地址pa开始的size大小的内存，并返回pa对应的线性地址。</span></span><br><span class="line">    cprintf(<span class="string">&quot;reg_base:%x, reg_size:%x\n&quot;</span>, pcif-&gt;reg_base[<span class="number">0</span>], pcif-&gt;reg_size[<span class="number">0</span>]);</span><br><span class="line">    bar_va = mmio_map_region(pcif-&gt;reg_base[<span class="number">0</span>],pcif-&gt;reg_size[<span class="number">0</span>]);</span><br><span class="line">    <span class="keyword">uint32_t</span> *status_reg = (<span class="keyword">uint32_t</span> *)E1000REG(E1000_STATUS);</span><br><span class="line">    assert(*status_reg == <span class="number">0x80080783</span>);</span><br><span class="line">    e1000_transmit_init();</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> <span class="keyword">void</span></span><br><span class="line">e1000_transmit_init()</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">int</span> i;</span><br><span class="line">    <span class="keyword">for</span>(<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; TXDESCS;i++)&#123;</span><br><span class="line">        tx_desc_array[i].addr = PADDR(tx_buffer_array[i]);</span><br><span class="line">        tx_desc_array[i].cmd = <span class="number">0</span>;</span><br><span class="line">        tx_desc_array[i].status |= E1000_TXD_STAT_DD;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//设置队列长度寄存器</span></span><br><span class="line">    tdlen = (struct e1000_tdlen *)E1000REG(E1000_TDLEN);</span><br><span class="line">    tdlen-&gt;len = TXDESCS;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//设置队列基址低32位</span></span><br><span class="line">    <span class="keyword">uint32_t</span> *tdbal = (<span class="keyword">uint32_t</span> *)E1000REG(E1000_TDBAL);</span><br><span class="line">    *tdbal = PADDR(tx_desc_array);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//设置队列基址高32位</span></span><br><span class="line">    <span class="keyword">uint32_t</span> *tdbah = (<span class="keyword">uint32_t</span> *)E1000REG(E1000_TDBAH);</span><br><span class="line">    *tdbah = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//设置头指针寄存器</span></span><br><span class="line">    tdh = (struct e1000_tdh *)E1000REG(E1000_TDH);</span><br><span class="line">    tdh-&gt;tdh = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//设置尾指针寄存器</span></span><br><span class="line">    tdt = (struct e1000_tdt *)E1000REG(E1000_TDT);</span><br><span class="line">    tdt-&gt;tdt = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//TCTL register</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">e1000_tctl</span> *<span class="title">tctl</span> =</span> (struct e1000_tctl *)E1000REG(E1000_TCTL);</span><br><span class="line">    tctl-&gt;en = <span class="number">1</span>;</span><br><span class="line">    tctl-&gt;psp = <span class="number">1</span>;</span><br><span class="line">    tctl-&gt;ct = <span class="number">0x10</span>;</span><br><span class="line">    tctl-&gt;cold = <span class="number">0x40</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//TIPG register</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">e1000_tipg</span> *<span class="title">tipg</span> =</span> (struct e1000_tipg *)E1000REG(E1000_TIPG);</span><br><span class="line">    tipg-&gt;ipgt = <span class="number">10</span>;</span><br><span class="line">    tipg-&gt;ipgr1 = <span class="number">4</span>;</span><br><span class="line">    tipg-&gt;ipgr2 = <span class="number">6</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>现在初始化已经完成，接着需要编写代码发送数据包，提供系统调用给用户代码使用。要发送一个数据包，需要将数据拷贝到数据下一个数据缓冲区，然后更新TDT寄存器来通知网卡新的数据包已经就绪。</p>
+<p><strong>exercise6</strong></p>
+<p>编写发送数据包的函数，处理好发送队列已满的情况。如果发送队列满了怎么办？</p>
+<p>怎么检测发送队列已满；如果设置了发送描述符的RS位，那么当网卡发送了一个描述符指向的数据包后，会设置该描述符的DD位，通过这个标志位就能知道某个描述符是否能被回收。检测到当发送队列已满后怎么办：可以简单的丢弃准备发送的数据包。也可以告诉用户进程进程当前发送队列已满，请重试，就像sys_ipc_try_send()一样。我们采用重试的方式。</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span> </span><br><span class="line">e1000_transmit(<span class="keyword">void</span> *data,<span class="keyword">size_t</span> len)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">uint32_t</span> current = tdt-&gt;tdt; <span class="comment">//tail index in queue</span></span><br><span class="line">    <span class="keyword">if</span>(!(tx_desc_array[current].status &amp; E1000_TXD_STAT_DD))&#123;</span><br><span class="line">        <span class="keyword">return</span> -E_TRANSMIT_RETRY;</span><br><span class="line">    &#125;</span><br><span class="line">    tx_desc_array[current].length = len;</span><br><span class="line">    tx_desc_array[current].status &amp;= ~E1000_TXD_STAT_DD;</span><br><span class="line">    tx_desc_array[current].cmd |= (E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS); </span><br><span class="line">    <span class="built_in">memcpy</span>(tx_buffer_array[current],data,len);</span><br><span class="line">    <span class="keyword">uint32_t</span> next = (current + <span class="number">1</span>) % TXDESCS;</span><br><span class="line">    tdt-&gt;tdt = next;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><img src="https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab6/lab6_5_driver_queue.png" alt="驱动工作方式"></p>
+<p>对于发送队列来说是一个典型的生产者-消费者模型：</p>
+<ol>
+<li>生产者：用户进程。通过系统调用往tail指向的描述符的缓冲区添加数据包，并且移动tail。</li>
+<li>消费者：网卡。通过DMA的方式直接从head指向的描述符对应的缓冲区拿包发送出去，并移动head</li>
+</ol>
+<p>接受队列也类似</p>
+<p><strong>exercise7</strong></p>
+<p>实现发送数据包的系统调用，我们已经添加过很多次了，这里就不贴代码了</p>
+<h2 id="Transmitting-Packets-Network-Server"><a href="#Transmitting-Packets-Network-Server" class="headerlink" title="Transmitting Packets: Network Server"></a>Transmitting Packets: Network Server</h2><p>输出协助进程的任务是，执行一个无限循环，在该循环中接受核心网络进程的IPC请求，解析该请求，然后使用系统调用发送数据。</p>
+<p><strong>exercise8</strong></p>
+<p>实现net/output.c</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;ns.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;inc/lib.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">extern</span> <span class="class"><span class="keyword">union</span> <span class="title">Nsipc</span> <span class="title">nsipcbuf</span>;</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">void</span></span><br><span class="line">output(<span class="keyword">envid_t</span> ns_envid)</span><br><span class="line">&#123;</span><br><span class="line">	binaryname = <span class="string">&quot;ns_output&quot;</span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// LAB 6: Your code here:</span></span><br><span class="line">	<span class="comment">// 	- read a packet from the network server</span></span><br><span class="line">	<span class="comment">//	- send the packet to the device driver</span></span><br><span class="line">	<span class="keyword">uint32_t</span> whom;</span><br><span class="line">	<span class="keyword">int</span> perm;</span><br><span class="line">	<span class="keyword">int32_t</span> req;</span><br><span class="line">	<span class="keyword">while</span>(<span class="number">1</span>)&#123;</span><br><span class="line">		req = ipc_recv((<span class="keyword">envid_t</span>*)&amp;whom,&amp;nsipcbuf,&amp;perm);<span class="comment">//接受核心网络进程发来的请求</span></span><br><span class="line">		<span class="keyword">if</span>(req != NSREQ_OUTPUT)&#123;</span><br><span class="line">			cprintf(<span class="string">&quot;not a nsreq output!\n&quot;</span>);</span><br><span class="line">			<span class="keyword">continue</span>;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="class"><span class="keyword">struct</span> <span class="title">jif_pkt</span> *<span class="title">pkt</span> =</span> &amp;(nsipcbuf.pkt);</span><br><span class="line">		<span class="keyword">while</span>(sys_pkt_send(pkt-&gt;jp_data,pkt-&gt;jp_len) &lt; <span class="number">0</span>)&#123;<span class="comment">//通过系统调用发送数据包</span></span><br><span class="line">			sys_yield();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h1 id="Part-B-Receiving-packets-and-the-web-server"><a href="#Part-B-Receiving-packets-and-the-web-server" class="headerlink" title="Part B: Receiving packets and the web server"></a>Part B: Receiving packets and the web server</h1><h2 id="Receiving-Packets"><a href="#Receiving-Packets" class="headerlink" title="Receiving Packets"></a>Receiving Packets</h2><p>像发送过程一样，需要配置E1000去接受数据包，同时提供一个接受描述符队列，接受缓冲区。3.2节描述了数据包接受的工作原理，包括接受队列和接受描述符，初始化过程详见14.4节。</p>
+<p><strong>exercise9</strong></p>
+<p>阅读文档我们可以写出接受描述符的结构体</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">e1000_rx_desc</span> &#123;</span></span><br><span class="line">       <span class="keyword">uint64_t</span> addr;</span><br><span class="line">       <span class="keyword">uint16_t</span> length;</span><br><span class="line">       <span class="keyword">uint16_t</span> chksum;</span><br><span class="line">       <span class="keyword">uint8_t</span> status;</span><br><span class="line">       <span class="keyword">uint8_t</span> errors;</span><br><span class="line">       <span class="keyword">uint16_t</span> special;</span><br><span class="line">&#125;__attribute__((packed));</span><br></pre></td></tr></table></figure>
+<p>当E1000收到数据包时，它首先检查它是否与卡配置的过滤器匹配（例如，查看数据包中MAC地址与网卡是否匹配），如果数据包与任意一个过滤器不匹配，则忽略该数据包。 否则，E1000尝试从接收队列的头部检索下一个接收描述符。 如果头部（RDH）已经赶上尾部（RDT），则接收队列没有空闲描述符，网卡将会丢弃数据包。 如果存在空闲接收描述符，则将分组数据复制到描述符指向的缓冲区中，设置描述符的DD（描述符完成）和EOP（包结束）状态位，并递增 RDH。</p>
+<p>如果 E1000 接收到一个数据包，其大小大于数据包缓冲区大小，它将从接收队列中检索所需数量的描述符以完整存储数据包。 为了表明发生这种情况，它将在所有这些描述符上设置DD状态位，但仅在最后一个描述符上设置<code>EOP</code>状态位。 我们可以选择在驱动程序中处理这种可能性，或者只是将网卡配置为不接受“长数据包”（也称为巨型帧）并确保接收缓冲区足够大以存储最大可能的标准以太网数据包（1518字节）。</p>
+<p><strong>exercise10</strong></p>
+<p>这部分与发送部分代码编写流程是类似的，查文档，为接收描述符、接收buffer 分配静态内存等，然后对接收描述符、E1000 RCTL等寄存器进行初始化。</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">void</span></span><br><span class="line">get_ra_address(<span class="keyword">uint32_t</span> mac[],<span class="keyword">uint32_t</span> *ral,<span class="keyword">uint32_t</span> *rah)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">uint32_t</span> low = <span class="number">0</span>,high = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">int</span> i;</span><br><span class="line">    <span class="keyword">for</span>(i = <span class="number">0</span>; i &lt; <span class="number">4</span>; i++)&#123;</span><br><span class="line">        low |= mac[i] &lt;&lt; (<span class="number">8</span> * i);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span>(i = <span class="number">4</span>; i &lt; <span class="number">6</span>; i++)&#123;</span><br><span class="line">        high |= mac[i] &lt;&lt; (<span class="number">8</span> * i);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    *ral = low;</span><br><span class="line">    *rah = high | E1000_RAH_AV;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">void</span> </span><br><span class="line">e1000_receive_init()</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">//RDBAL and RDBAH register</span></span><br><span class="line">    <span class="keyword">uint32_t</span> *rdbal = (<span class="keyword">uint32_t</span> *)E1000REG(E1000_RDBAL);</span><br><span class="line">    <span class="keyword">uint32_t</span> *rdbah = (<span class="keyword">uint32_t</span> *)E1000REG(E1000_RDBAH);</span><br><span class="line">    </span><br><span class="line">    *rdbah = <span class="number">0</span>;</span><br><span class="line">    *rdbal = PADDR(rx_desc_array);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">int</span> i;</span><br><span class="line">    <span class="keyword">for</span>(i = <span class="number">0</span>;i &lt; RXDESCS; i++)&#123;</span><br><span class="line">        rx_desc_array[i].addr = PADDR(rx_buffer_array[i]);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//RDLEN register</span></span><br><span class="line">    rdlen = (struct e1000_rdlen *)E1000REG(E1000_RDLEN);</span><br><span class="line">    rdlen-&gt;len = RXDESCS;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//RDH and RDT register</span></span><br><span class="line">    rdh = (struct e1000_rdh *)E1000REG(E1000_RDH);</span><br><span class="line">    rdt = (struct e1000_rdt *)E1000REG(E1000_RDT);</span><br><span class="line"></span><br><span class="line">    rdh-&gt;rdh = <span class="number">0</span>;</span><br><span class="line">    rdt-&gt;rdt = RXDESCS - <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint32_t</span> *rctl = (<span class="keyword">uint32_t</span> *)E1000REG(E1000_RCTL);</span><br><span class="line">    *rctl = E1000_RCTL_BAM | E1000_RCTL_EN | E1000_RCTL_SECRC;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">uint32_t</span> *ra = (<span class="keyword">uint32_t</span> *)E1000REG(E1000_RA);</span><br><span class="line">    <span class="keyword">uint32_t</span> ral,rah;</span><br><span class="line">    get_ra_address(E1000_MAC,&amp;ral,&amp;rah);</span><br><span class="line">    ra[<span class="number">0</span>] = rah;</span><br><span class="line">    ra[<span class="number">1</span>] = ral;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>现在我们已经准备好开始接受数据包。要接收数据包，我们的驱动程序必须跟踪希望被保留下来接受数据包的下一个描述符。与发送类似，文档指出无法从软件中可靠地读取RDH寄存器，因此为了确定数据包是否已传动到此描述符的数据包缓冲区，我们必须读取描述符中的DD状态位。如果DD位已经置位（此由硬件完成），则可以将数据包数据从该描述符的数据包缓冲区中复制出来，然后通过更新队列的尾部索引RDT告诉卡该描述符是空闲的。</p>
+<p>如果DD位未置位，则表示此时此刻未收到任何数据包。 在这种情况下我们可以只需返回“try again”错误，并要求调用者重试。</p>
+<p><strong>exercise11</strong></p>
+<p>receive的实现，最重要的一点就是理解硬件接受数据包的过程：当硬件接收到数据包时，首先会进行一次过滤(比对MAC地址等)，若符合接受标准，硬件会将数据包存储到我们分配的buffer中，并同时设置描述符的DD位以及执行RDH加1操作。所以当我们编写receive函数时，可以选择定义一个static变量，用来指向第一个可接收的描述符。系统调用的实现就不再详细给出。receive的实现如下：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">int</span></span><br><span class="line">e1000_receive(<span class="keyword">void</span> *addr,<span class="keyword">size_t</span> *len)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">int32_t</span> next = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">if</span>(!(rx_desc_array[next].status &amp;&amp; E1000_RXD_STAT_DD))&#123; <span class="comment">//simply tell client to retry</span></span><br><span class="line">        <span class="keyword">return</span> -E_RECEIVE_RETRY;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span>(rx_desc_array[next].errors)&#123;</span><br><span class="line">        cprintf(<span class="string">&quot;receive error\n&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> -E_RECEIVE_RETRY;</span><br><span class="line">    &#125;</span><br><span class="line">    *len = rx_desc_array[next].length;</span><br><span class="line">    <span class="built_in">memcpy</span>(addr,rx_buffer_array[next],*len);</span><br><span class="line">    </span><br><span class="line">    next = (next + <span class="number">1</span>) % RXDESCS;</span><br><span class="line">    rdt-&gt;rdt = (rdt-&gt;rdt + <span class="number">1</span>) % RXDESCS;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="Receiving-Packets-Network-Server"><a href="#Receiving-Packets-Network-Server" class="headerlink" title="Receiving Packets: Network Server"></a>Receiving Packets: Network Server</h2><p>在网络服务器输入环境中，您将需要使用新的接受系统调用来接受数据包，并使用<code>NSREQ_INPUT</code>IPC信息将它们传送到核心网络服务器环境。这些IPC输入消息应该有一个页面附加一个<code>union Nsipc</code>，其<code>struct jif_pkt pkt</code>字段填入从网络接受的数据包。</p>
+<p><strong>exercise12</strong></p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&quot;ns.h&quot;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;kern/e1000.h&gt;</span></span></span><br><span class="line"><span class="keyword">extern</span> <span class="class"><span class="keyword">union</span> <span class="title">Nsipc</span> <span class="title">nsipcbuf</span>;</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">void</span></span><br><span class="line">sleep(<span class="keyword">int</span> msec)</span><br><span class="line">&#123;</span><br><span class="line">       <span class="keyword">unsigned</span> now = sys_time_msec();</span><br><span class="line">       <span class="keyword">unsigned</span> end = now + msec;</span><br><span class="line"></span><br><span class="line">       <span class="keyword">if</span> ((<span class="keyword">int</span>)now &lt; <span class="number">0</span> &amp;&amp; (<span class="keyword">int</span>)now &gt; -MAXERROR)</span><br><span class="line">               panic(<span class="string">&quot;sys_time_msec: %e&quot;</span>, (<span class="keyword">int</span>)now);</span><br><span class="line"></span><br><span class="line">       <span class="keyword">while</span> (sys_time_msec() &lt; end)</span><br><span class="line">               sys_yield();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">void</span></span><br><span class="line">input(<span class="keyword">envid_t</span> ns_envid)</span><br><span class="line">&#123;</span><br><span class="line">	binaryname = <span class="string">&quot;ns_input&quot;</span>;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// LAB 6: Your code here:</span></span><br><span class="line">	<span class="comment">// 	- read a packet from the device driver</span></span><br><span class="line">	<span class="comment">//	- send it to the network server</span></span><br><span class="line">	<span class="comment">// Hint: When you IPC a page to the network server, it will be</span></span><br><span class="line">	<span class="comment">// reading from it for a while, so don&#x27;t immediately receive</span></span><br><span class="line">	<span class="comment">// another packet in to the same physical page.</span></span><br><span class="line">	<span class="keyword">size_t</span> len;</span><br><span class="line">	<span class="keyword">char</span> buf[RX_PKT_SIZE];</span><br><span class="line">	<span class="keyword">while</span>(<span class="number">1</span>)&#123;</span><br><span class="line">		<span class="keyword">if</span>(sys_pkt_recv(buf,&amp;len) &lt; <span class="number">0</span>)&#123;</span><br><span class="line">			<span class="keyword">continue</span>;</span><br><span class="line">		&#125;</span><br><span class="line">		<span class="built_in">memcpy</span>(nsipcbuf.pkt.jp_data,buf,len);</span><br><span class="line">		nsipcbuf.pkt.jp_len = len;</span><br><span class="line">		ipc_send(ns_envid,NSREQ_INPUT,&amp;nsipcbuf,PTE_P | PTE_U | PTE_W);</span><br><span class="line">		sleep(<span class="number">50</span>);</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>为了更彻底地测试我们的网络代码，源码已经提供了一个名为<code>echosrv</code>的守护进程，它设置一个在 port 7上运行的<code>echo</code>服务器，它将回显通过TCP连接发送的任何内容。我们在一个终端执行<code>make E1000_DEBUG=TX,TXERR,RX,RXERR,RXFILTER run-echosrv</code> 开启 echo 服务器， 在另一个终端执行 <code>make nc-7</code>连接 echo 服务器。可以看到 nc 端的消息回显。</p>
+<blockquote>
+<p>Question</p>
+<ol>
+<li><p>你是如何构建接收实现的？ 特别是，如果接收队列为空并且用户环境请求下一个传入数据包，你会怎么做？</p>
+<p>用户请求接收时，若接受不成功（队列为空），则<code>sched</code>暂时让出控制权。接收成功，发送IPC，通知网络核心环境已经获得数据包，并简单sleep 50 ms，因为 网络核心环境需要时间对当前 shared 页的数据包进行处理。 当然，这样效率十分低下，我们可以考虑在Input环境中申请一定数量的页，轮流使用这个页向网络核心环境传递网络数据包。</p>
+</li>
+</ol>
+</blockquote>
+<h2 id="The-Web-Server"><a href="#The-Web-Server" class="headerlink" title="The Web Server"></a>The Web Server</h2><p>在usr/httpd.c中的框架代码处理到达的连接并解析消息头部</p>
+<p>首先编写<code>send_file</code>，根据提示，在原有的代码前添加以下代码。</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">int</span></span><br><span class="line">send_file(struct http_request *req)</span><br><span class="line">&#123;</span><br><span class="line">	<span class="keyword">int</span> r;</span><br><span class="line">	<span class="keyword">off_t</span> file_size = <span class="number">-1</span>;</span><br><span class="line">	<span class="keyword">int</span> fd;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// open the requested url for reading</span></span><br><span class="line">	<span class="comment">// if the file does not exist, send a 404 error using send_error</span></span><br><span class="line">	<span class="comment">// if the file is a directory, send a 404 error using send_error</span></span><br><span class="line">	<span class="comment">// set file_size to the size of the file</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// LAB 6: Your code here.</span></span><br><span class="line">	<span class="comment">//panic(&quot;send_file not implemented&quot;);</span></span><br><span class="line">	<span class="keyword">if</span>((fd = open(req-&gt;url,O_RDONLY)) &lt; <span class="number">0</span>)&#123;</span><br><span class="line">		send_error(req,<span class="number">404</span>);</span><br><span class="line">		<span class="keyword">goto</span> end;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">Stat</span> <span class="title">stat</span>;</span></span><br><span class="line">	fstat(fd, &amp;stat);</span><br><span class="line">	<span class="keyword">if</span> (stat.st_isdir) &#123; <span class="comment">//是一个目录</span></span><br><span class="line">		send_error(req, <span class="number">404</span>);</span><br><span class="line">		<span class="keyword">goto</span> end;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> ((r = send_header(req, <span class="number">200</span>)) &lt; <span class="number">0</span>)</span><br><span class="line">		<span class="keyword">goto</span> end;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> ((r = send_size(req, file_size)) &lt; <span class="number">0</span>)</span><br><span class="line">		<span class="keyword">goto</span> end;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> ((r = send_content_type(req)) &lt; <span class="number">0</span>)</span><br><span class="line">		<span class="keyword">goto</span> end;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> ((r = send_header_fin(req)) &lt; <span class="number">0</span>)</span><br><span class="line">		<span class="keyword">goto</span> end;</span><br><span class="line"></span><br><span class="line">	r = send_data(req, fd);</span><br><span class="line"></span><br><span class="line">end:</span><br><span class="line">	close(fd);</span><br><span class="line">	<span class="keyword">return</span> r;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后是<code>send_data</code></p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">int</span></span><br><span class="line">send_data(struct http_request *req, <span class="keyword">int</span> fd)</span><br><span class="line">&#123;</span><br><span class="line">	<span class="comment">// LAB 6: Your code here.</span></span><br><span class="line">	<span class="comment">//panic(&quot;send_data not implemented&quot;);</span></span><br><span class="line">	<span class="comment">//从fd中读取size大小数据,并发送</span></span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">Stat</span> <span class="title">stat</span>;</span></span><br><span class="line">	fstat(fd,&amp;stat);</span><br><span class="line">	<span class="keyword">void</span> *buf = <span class="built_in">malloc</span>(stat.st_size);</span><br><span class="line">	<span class="keyword">if</span>(readn(fd,buf,stat.st_size) != stat.st_size)&#123;</span><br><span class="line">		panic(<span class="string">&quot;failed to read requested file\n&quot;</span>);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">//write to socket</span></span><br><span class="line">	<span class="keyword">if</span>(write(req-&gt;sock,buf,stat.st_size) != stat.st_size)&#123;</span><br><span class="line">		panic(<span class="string">&quot;failed to send bytes to client&quot;</span>);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="built_in">free</span>(buf);</span><br><span class="line">	buf = <span class="literal">NULL</span>;</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>最后 run <code>make run-httpd-nox</code>，然后在虚拟机的浏览器中输入<code>http://localhost:26002</code>，浏览器会显示404， 然后输入<code>http://localhost:26002/index.html</code>，Web将会返回内容<code>cheesy web page</code>。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><ol>
+<li><p>实现网卡驱动。</p>
+<ol>
+<li>通过MMIO方式访问网卡，直接通过内存就能设置网卡的工作方式和特性。</li>
+<li>通过DMA方式，使得网卡在不需要CPU干预的情况下直接和内存交互。具体工作方式如下：<img src="https://blog-1253119293.cos.ap-beijing.myqcloud.com/6.828/lab6/lab6_5_driver_queue.png" alt="驱动工作方式"> 以发送数据为例，维护一个发送队列，生产者将要发送的数据放到发送队列中tail指向的描述符对应的缓冲区，同时更新tail指针。网卡作为消费者，从head指向的描述符对应的缓冲区拿到数据并发送出去，然后更新head指针。</li>
+</ol>
+</li>
+<li><p>用户级线程实现。主要关注三个函数就能明白原理：</p>
+<ol>
+<li>thread_init()</li>
+<li>thread_create()</li>
+<li>thread_yield()</li>
+</ol>
+</li>
+</ol>
+<p><img src="https://inews.gtimg.com/newsapp_ls/0/13965893358/0" alt="image-20210910181407379"></p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">C7</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="https://billyotry.github.io/2021/09/01/%E3%80%90MIT6.828%E3%80%91JOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%20Lab6/">https://billyotry.github.io/2021/09/01/%E3%80%90MIT6.828%E3%80%91JOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%20Lab6/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="https://billyotry.github.io" target="_blank">C7</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/OS/">OS</a></div><div class="post_share"><div class="social-share" data-image="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" data-sites="facebook,twitter,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/2099/01/01/test/"><img class="prev-cover" src="https://i.loli.net/2021/01/22/QJ1bzWyEp9IKx7R.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">这是标题</div></div></a></div><div class="next-post pull-right"><a href="/2021/08/30/Confidence2020%20CTF%20KVM/"><img class="next-cover" src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info"></div></div></a></div></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span> 相关推荐</span></div><div class="relatedPosts-list"><div><a href="/2021/07/30/【MIT6.828】JOS学习笔记 Lab2/" title="【MIT 6.828】JOS学习笔记 Lab2"><img class="cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-07-30</div><div class="title">【MIT 6.828】JOS学习笔记 Lab2</div></div></a></div><div><a href="/2021/02/28/【MIT6.828】Lab1-Exercise11/" title="【MIT6.828】Lab1-Exercise11"><img class="cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-02-28</div><div class="title">【MIT6.828】Lab1-Exercise11</div></div></a></div><div><a href="/2021/03/05/【MIT6.828】Lab1-Exercise12/" title="【MIT6.828】Lab1-Exercise12"><img class="cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-03-05</div><div class="title">【MIT6.828】Lab1-Exercise12</div></div></a></div><div><a href="/2021/01/22/【MIT6.828】Lab1-Exercise2/" title="【MIT 6.828】Lab1-Exercise2"><img class="cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-01-22</div><div class="title">【MIT 6.828】Lab1-Exercise2</div></div></a></div><div><a href="/2021/01/30/【MIT6.828】Lab1-Exercise5/" title="【MIT6.828】Lab1-Exercise5"><img class="cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-01-30</div><div class="title">【MIT6.828】Lab1-Exercise5</div></div></a></div><div><a href="/2021/01/31/【MIT6.828】Lab1-Exercise6/" title="【MIT6.828】Lab1-Exercise6"><img class="cover" src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-01-31</div><div class="title">【MIT6.828】Lab1-Exercise6</div></div></a></div></div></div><hr/><div id="post-comment"><div class="comment-head"><div class="comment-headline"><i class="fas fa-comments fa-fw"></i><span> 评论</span></div></div><div class="comment-wrap"><div><div class="vcomment" id="vcomment"></div></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="card-info-avatar is-center"><img class="avatar-img" src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/><div class="author-info__name">C7</div><div class="author-info__description">雖不能至 心嚮往之</div></div><div class="card-info-data"><div class="card-info-data-item is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">50</div></a></div><div class="card-info-data-item is-center"><a href="/tags/"><div class="headline">标签</div><div class="length-num">12</div></a></div><div class="card-info-data-item is-center"><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div></div><a class="button--animated" id="card-info-btn"><i class="fa fa-paper-plane-o"></i><span>加入书签</span></a><div class="card-info-social-icons is-center"><a class="social-icon" href="https://github.com/BillyoTry" target="_blank" title="Github"><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:1347405944@qq.com" target="_blank" title="Email"><i class="fa fa-envelope"></i></a><a class="social-icon" href="tencent://message/?uin=1347405944&amp;Site=&amp;Menu=yes" target="_blank" title=""><i class="fab fa-qq"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn card-announcement-animation"></i><span>公告</span></div><div class="announcement_content">大家疫情期间注意保护自己噢~~~~</div></div><div class="sticky_layout"><div class="card-widget card-clock" style="padding:0"><div class="card-glass"><div class="card-background"><div class="card-content"><div id="clock" style="padding:20px"><img v-if="clockshow == &quot;false&quot;" src="/clock/images/weather/loading.gif" style="height:120px;width:100%"/><table class="clock" v-if="clockshow"><tbody><tr><td class="clockdate">{{date}}</td><td class="weatherimg" align="center" valign="middle"><img id="weatherimg" :src="weatherimg"/></td><td class="temperature" align="center" valign="middle">{{temperature}}</td><td class="humidityimg"><img id="humidityimg" :src="humidityimg"/></td><td class="humidity">{{humidity}}</td></tr><tr class="time"><td colspan="5">{{time}}</td></tr><tr><td class="usaqi" colspan="1"> <span>{{ip}}</span></td><td class="city" colspan="2">{{city}}</td><td class="daylight" colspan="2">{{daylight}}</td></tr></tbody></table></div></div></div></div></div><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%A6%82%E8%BF%B0"><span class="toc-number">1.</span> <span class="toc-text">概述</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#The-Network-Server"><span class="toc-number">2.</span> <span class="toc-text">The Network Server</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Part-A-Initialization-and-transmitting-packets"><span class="toc-number">3.</span> <span class="toc-text">Part A: Initialization and transmitting packets</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#The-Network-Interface-Card"><span class="toc-number">3.1.</span> <span class="toc-text">The Network Interface Card</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#PCI-Interface"><span class="toc-number">3.1.1.</span> <span class="toc-text">PCI Interface</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Memory-mapped-I-O"><span class="toc-number">3.2.</span> <span class="toc-text">Memory-mapped I&#x2F;O</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#DMA"><span class="toc-number">3.2.1.</span> <span class="toc-text">DMA</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Transmitting-Packets"><span class="toc-number">3.3.</span> <span class="toc-text">Transmitting Packets</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Transmitting-Packets-Network-Server"><span class="toc-number">3.4.</span> <span class="toc-text">Transmitting Packets: Network Server</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Part-B-Receiving-packets-and-the-web-server"><span class="toc-number">4.</span> <span class="toc-text">Part B: Receiving packets and the web server</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#Receiving-Packets"><span class="toc-number">4.1.</span> <span class="toc-text">Receiving Packets</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Receiving-Packets-Network-Server"><span class="toc-number">4.2.</span> <span class="toc-text">Receiving Packets: Network Server</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#The-Web-Server"><span class="toc-number">4.3.</span> <span class="toc-text">The Web Server</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-number">5.</span> <span class="toc-text">总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2099/01/01/test/" title="这是标题"><img src="https://i.loli.net/2021/01/22/QJ1bzWyEp9IKx7R.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="这是标题"/></a><div class="content"><a class="title" href="/2099/01/01/test/" title="这是标题">这是标题</a><time datetime="2098-12-31T16:00:00.000Z" title="发表于 2099-01-01 00:00:00">2099-01-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/09/01/%E3%80%90MIT6.828%E3%80%91JOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%20Lab6/" title="【MIT 6.828】JOS学习笔记 Lab6"><img src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【MIT 6.828】JOS学习笔记 Lab6"/></a><div class="content"><a class="title" href="/2021/09/01/%E3%80%90MIT6.828%E3%80%91JOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%20Lab6/" title="【MIT 6.828】JOS学习笔记 Lab6">【MIT 6.828】JOS学习笔记 Lab6</a><time datetime="2021-09-01T13:09:40.378Z" title="发表于 2021-09-01 21:09:40">2021-09-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/08/30/Confidence2020%20CTF%20KVM/" title="无题"><img src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1/img/default.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="无题"/></a><div class="content"><a class="title" href="/2021/08/30/Confidence2020%20CTF%20KVM/" title="无题">无题</a><time datetime="2021-08-30T09:20:39.927Z" title="发表于 2021-08-30 17:20:39">2021-08-30</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/08/24/%E3%80%90MIT6.828%E3%80%91JOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%20Lab5/" title="【MIT 6.828】JOS学习笔记 Lab5"><img src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【MIT 6.828】JOS学习笔记 Lab5"/></a><div class="content"><a class="title" href="/2021/08/24/%E3%80%90MIT6.828%E3%80%91JOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%20Lab5/" title="【MIT 6.828】JOS学习笔记 Lab5">【MIT 6.828】JOS学习笔记 Lab5</a><time datetime="2021-08-24T11:49:31.377Z" title="发表于 2021-08-24 19:49:31">2021-08-24</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2021/08/08/%E3%80%90MIT6.828%E3%80%91JOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%20Lab4/" title="【MIT 6.828】JOS学习笔记 Lab4"><img src="https://i.loli.net/2021/01/23/jvHCWeyMJIhQn2f.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="【MIT 6.828】JOS学习笔记 Lab4"/></a><div class="content"><a class="title" href="/2021/08/08/%E3%80%90MIT6.828%E3%80%91JOS%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%20Lab4/" title="【MIT 6.828】JOS学习笔记 Lab4">【MIT 6.828】JOS学习笔记 Lab4</a><time datetime="2021-08-08T14:12:16.641Z" title="发表于 2021-08-08 22:12:16">2021-08-08</time></div></div></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2020 - 2021 By C7</div><div class="footer_custom_text"><p><a style="margin-inline:5px" target="_blank" href="https://hexo.io/"><img src="https://img.shields.io/badge/Frame-Hexo-blue?style=flat&logo=hexo" title="博客框架为Hexo"></a><a style="margin-inline:5px" target="_blank" href="https://butterfly.js.org/"><img src="https://img.shields.io/badge/Theme-Butterfly-6513df?style=flat&logo=bitdefender" title="主题采用butterfly"></a><a style="margin-inline:5px" target="_blank" href="https://www.jsdelivr.com/"><img src="https://img.shields.io/badge/CDN-jsDelivr-orange?style=flat&logo=jsDelivr" title="本站使用JsDelivr为静态资源提供CDN加速"></a><a style="margin-inline:5px" target="_blank" href="https://vercel.com/ "><img src="https://img.shields.io/badge/Hosted-Vervel-brightgreen?style=flat&logo=Vercel" title="本站采用双线部署，默认线路托管于Vercel"></a><a style="margin-inline:5px" target="_blank" href="https://vercel.com/ "><img src="https://img.shields.io/badge/Hosted-Coding-0cedbe?style=flat&logo=Codio" title="本站采用双线部署，联通线路托管于Coding"></a><a style="margin-inline:5px" target="_blank" href="https://github.com/"><img src="https://img.shields.io/badge/Source-Github-d021d6?style=flat&logo=GitHub" title="本站项目由Gtihub托管"></a><a style="margin-inline:5px" target="_blank" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img src="https://img.shields.io/badge/Copyright-BY--NC--SA%204.0-d42328?style=flat&logo=Claris" title="本站采用知识共享署名-非商业性使用-相同方式共享4.0国际许可协议进行许可"></a></p></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><a id="to_comment" href="#post-comment" title="直达评论"><i class="fas fa-comments"></i></a><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><div class="js-pjax"><script>function loadValine () {
+  function initValine () {
+    let initData = {
+      el: '#vcomment',
+      appId: '',
+      appKey: '',
+      placeholder: 'Please leave your footprints',
+      avatar: 'monsterid',
+      meta: 'nick,mail,link'.split(','),
+      pageSize: '10',
+      lang: 'en',
+      recordIP: false,
+      serverURLs: '',
+      emojiCDN: '',
+      emojiMaps: "",
+      enableQQ: false,
+      path: window.location.pathname,
+    }
+
+    if (true) { 
+      initData.requiredFields= ('nick,mail'.split(','))
+    }
+    
+    if (false) {
+      const otherData = false
+      initData = Object.assign(initData, otherData)
+    }
+    
+    const valine = new Valine(initData)
+  }
+
+  if (typeof Valine === 'function') initValine() 
+  else getScript('https://cdn.jsdelivr.net/npm/valine/dist/Valine.min.js').then(initValine)
+}
+
+if ('Valine' === 'Valine' || !false) {
+  if (false) btf.loadComment(document.getElementById('vcomment'),loadValine)
+  else setTimeout(loadValine, 0)
+} else {
+  function loadOtherComment () {
+    loadValine()
+  }
+}</script></div><script src="/js/unbanner.js"></script><script src="https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/vue@2.6.11"></script><script src="/clock/js/clock.js"></script><script async src="//at.alicdn.com/t/font_2264842_3izu8i5eoc2.js"></script><script async src="/js/xktool.js"></script><script async src="/js/fish.js"></script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
