@@ -1,7 +1,7 @@
     
 	const mykey = {weather:'a01621aae501e0efbd8c6566aa3a882f'};
-	//let locationurl = 'https://ip.seeip.org/geoip';
-	let locationurl = 'https://extreme-ip-lookup.com/json/';
+	let locationurl = 'https://ip.seeip.org/geoip';
+	//let locationurl = 'https://extreme-ip-lookup.com/json/';
 	let cityname ='';
 	let weatherurl ='';
 	let userip ='';
@@ -28,6 +28,9 @@
 	};
     if(typeof data.region =="undefined"){
 	cityname = data.country;	
+	};
+if(typeof data.country =="undefined"){
+	cityname = "china";	
 	};
 	//userip = data.ip;
 	userip = data.query;
