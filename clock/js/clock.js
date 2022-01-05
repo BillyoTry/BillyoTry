@@ -32,8 +32,8 @@
 if(typeof data.country =="undefined"){
 	cityname = "china";	
 	};
-	//userip = data.ip;
-	userip = data.query;
+	userip = data.ip;
+	//userip = data.query;
 	weatherurl ='https://api.openweathermap.org/data/2.5/weather/?q=' + cityname + '&units=metric&appid=' + mykey.weather;
 	getweatherdata();
 	
